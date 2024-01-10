@@ -21,7 +21,7 @@ async def start():
     dp.message.register(unknown_message)
     dp.callback_query.register(incorrect_button_usage)
 
-    dp.message.middleware.register(AntispamMiddleware())
+    dp.message.middleware.register(AntispamMiddleware(cooldown=5))
 
     try:
         await dp.start_polling(bot)
