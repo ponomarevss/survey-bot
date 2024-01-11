@@ -1,25 +1,52 @@
 import asyncio
 import logging
+import os
 import sys
+import time
+from typing import Callable, Dict, Any, Awaitable
 
-from aiogram import F
+from aiogram import F, Bot, Dispatcher, BaseMiddleware
 from aiogram.filters import CommandStart
+from aiogram.types import TelegramObject, Message
 
-from handlers.form_handlers import process_command_start, process_init_state, unknown_message, incorrect_button_usage, \
-    process_start_survey_callback, process_ans_callback
-from loader import dp, bot
-from middlewares.form_middlewares import AntispamMiddleware
+from callback_query import command_start_message_handler, init_state_message_handler, unknown_message_handler, \
+    incorrect_button_usage_callback_handler, \
+    start_survey_callback_handler, ans_callback_handler
 from states import Form
 
 
-async def start():
-    dp.message.register(process_command_start, CommandStart())
-    dp.message.register(process_init_state, Form.user_name)
-    dp.callback_query.register(process_start_survey_callback, Form.answers, F.data.startswith("start_survey"))
-    dp.callback_query.register(process_ans_callback, Form.answers, F.data.startswith("ans"))
+class AntispamMiddleware(BaseMiddleware):
+    def __init__(self, cooldown: int) -> None:
+        self.timestamp = time.time()
+        self.cooldown = cooldown
 
-    dp.message.register(unknown_message)
-    dp.callback_query.register(incorrect_button_usage)
+    async def __call__(
+            self, handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+            event: Message,
+            data: Dict[str, Any]
+    ) -> Any:
+        timestamp = time.time()
+        # сложное условие: сообщение попадет в хендлер если стейт Form:user_name и при этом текст не "/start"
+        # или если не прошел кулдаун
+        if (((data['event_update'].message.text != '/start') & (data['raw_state'] == 'Form:user_name'))
+                | (timestamp - self.timestamp > self.cooldown)):
+            self.timestamp = timestamp
+            return await handler(event, data)
+        else:
+            return
+
+
+async def start():
+    bot = Bot(os.getenv("BOT_TOKEN"))
+    dp = Dispatcher()
+
+    dp.message.register(command_start_message_handler, CommandStart())
+    dp.message.register(init_state_message_handler, Form.user_name)
+    dp.message.register(unknown_message_handler)
+
+    dp.callback_query.register(start_survey_callback_handler, Form.answers, F.data.startswith("start_survey"))
+    dp.callback_query.register(ans_callback_handler, Form.answers, F.data.startswith("ans"))
+    dp.callback_query.register(incorrect_button_usage_callback_handler)
 
     dp.message.middleware.register(AntispamMiddleware(cooldown=5))
 
