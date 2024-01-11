@@ -10,7 +10,7 @@ from source import questions_source
 from states import Form
 
 
-async def process_command_start(message: Message, state: FSMContext) -> None:
+async def command_start_message_handler(message: Message, state: FSMContext) -> None:
     await state.update_data(user_id=str(uuid.uuid4()))
     text = (f"Hello and welcome!\n"
             f"How can I call you? (Type in your first name and last name)")
@@ -18,7 +18,7 @@ async def process_command_start(message: Message, state: FSMContext) -> None:
     await message.answer(text=text)
 
 
-async def process_init_state(message: Message, state: FSMContext) -> None:
+async def init_state_message_handler(message: Message, state: FSMContext) -> None:
     size = 10
     data = await state.update_data(
         user_name=message.text,
@@ -32,7 +32,7 @@ async def process_init_state(message: Message, state: FSMContext) -> None:
     await message.answer(text=text, reply_markup=get_start_survey_ikb(data))
 
 
-async def process_start_survey_callback(callback: CallbackQuery, state: FSMContext) -> None:
+async def start_survey_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
 
     if data['user_id'] == callback.data.split('_')[2]:
@@ -44,10 +44,10 @@ async def process_start_survey_callback(callback: CallbackQuery, state: FSMConte
         next_index = data['current_index'] + 1
         await state.update_data(current_index=next_index)
     else:
-        await incorrect_button_usage(callback)
+        await incorrect_button_usage_callback_handler(callback)
 
 
-async def process_ans_callback(callback: CallbackQuery, state: FSMContext) -> None:
+async def ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
 
     if data['user_id'] == callback.data.split('_')[2]:
@@ -66,16 +66,16 @@ async def process_ans_callback(callback: CallbackQuery, state: FSMContext) -> No
             await state.set_state(None)
 
     else:
-        await incorrect_button_usage(callback)
+        await incorrect_button_usage_callback_handler(callback)
 
 
-async def unknown_message(message: Message):
+async def unknown_message_handler(message: Message):
     await message.reply(
         text='Unknown message. Use buttons to continue current session or command "/start" to start new one.'
     )
 
 
-async def incorrect_button_usage(callback: CallbackQuery):
+async def incorrect_button_usage_callback_handler(callback: CallbackQuery):
     text = callback.message.text
     await callback.message.edit_text(text, reply_markup=None)
     await callback.answer("Incorrect button usage.")
