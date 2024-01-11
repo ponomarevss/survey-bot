@@ -16,6 +16,9 @@ from states import Form
 
 
 class AntispamMiddleware(BaseMiddleware):
+    """
+    Задача AntispamMiddleware ловить частые текстовые сообщения во всех возможных случаях
+    """
     def __init__(self, cooldown: int) -> None:
         self.timestamp = time.time()
         self.cooldown = cooldown
@@ -25,31 +28,50 @@ class AntispamMiddleware(BaseMiddleware):
             event: Message,
             data: Dict[str, Any]
     ) -> Any:
+        # сохранение значения времени получения апдейта
         timestamp = time.time()
-        # сложное условие: сообщение попадет в хендлер если стейт Form:user_name и при этом текст не "/start"
-        # или если не прошел кулдаун
-        if (((data['event_update'].message.text != '/start') & (data['raw_state'] == 'Form:user_name'))
-                | (timestamp - self.timestamp > self.cooldown)):
-            self.timestamp = timestamp
+
+        # апдейт дойдет до хендлеров если будут выполнены условия:
+        #   он пришел позже self.cooldown
+        #           или
+        #   если после команды '/start', когда активное состояние FSM соответствует 'Form:user_name',
+        #   сразу следует текстовое сообщение отличное от '/start'
+        if ((not iscommand_start(data)) & isname_state(data)) | (timestamp - self.timestamp > self.cooldown):
+            self.timestamp = timestamp  # обновление значения времени последнего апдейта
             return await handler(event, data)
         else:
             return
 
 
+def iscommand_start(data: Dict[str, Any]) -> bool:
+    # проверка текста сообщения на соответствие '/start'
+    return data['event_update'].message.text == '/start'
+
+
+def isname_state(data: Dict[str, Any]) -> bool:
+    # проверка активного состояния FSM на соответствие 'Form:user_name'
+    return data['raw_state'] == 'Form:user_name'
+
+
 async def start():
+    # сохранение экземпляров Bot и Dispatcher
     bot = Bot(os.getenv("BOT_TOKEN"))
     dp = Dispatcher()
 
+    # регистрация хендлеров для Message
     dp.message.register(command_start_message_handler, CommandStart())
     dp.message.register(init_state_message_handler, Form.user_name)
     dp.message.register(unknown_message_handler)
 
+    # регистрация хендлеров для CallbackQuery
     dp.callback_query.register(start_survey_callback_handler, Form.answers, F.data.startswith("start_survey"))
     dp.callback_query.register(ans_callback_handler, Form.answers, F.data.startswith("ans"))
     dp.callback_query.register(incorrect_button_usage_callback_handler)
 
+    # регистрация Middleware
     dp.message.middleware.register(AntispamMiddleware(cooldown=5))
 
+    # запуск сессии бота с закрытием при ошибке
     try:
         await dp.start_polling(bot)
     except Exception as _ex:
