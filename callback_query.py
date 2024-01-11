@@ -204,7 +204,7 @@ def compose_text(data: Dict[str, Any]) -> str:
     current_index = data['current_index']   # текущий индекс
     answers = data['answers']               # список правильных ответов
     name = data['user_name']                # user_name
-    text = f'Candidate {name}\n\n'          # часть текста с обращением
+    text = f'Тестирование кандидата {name}:\n\n'          # часть текста с обращением
 
     # цикл с формированием текста для элементов списка вопросов и ответов от 0 до текущего
     for i in range(current_index + 1):
@@ -276,7 +276,7 @@ def calculate_result(data: Dict[str, Any]) -> str:
             correct += 1
 
     # предоставляется строка с результатом
-    return f'Ваш результат: {correct} из {size} или {(correct / size) * 100}%'
+    return f'Результат: {correct} из {size} или {(correct / size) * 100}%'
 
 
 def get_questions(size: int) -> list[tuple[str, list[str], str]]:
