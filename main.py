@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import sys
 import time
 from typing import Callable, Dict, Any, Awaitable
@@ -9,6 +8,7 @@ from aiogram import F, Bot, Dispatcher, BaseMiddleware
 from aiogram.filters import CommandStart
 from aiogram.types import TelegramObject, Message
 
+from admin import API_TOKEN
 from callback_query import command_start_message_handler, init_state_message_handler, unknown_message_handler, \
     incorrect_button_usage_callback_handler, \
     start_survey_callback_handler, ans_callback_handler
@@ -36,26 +36,24 @@ class AntispamMiddleware(BaseMiddleware):
         #           или
         #   если после команды '/start', когда активное состояние FSM соответствует 'Form:user_name',
         #   сразу следует текстовое сообщение отличное от '/start'
-        if ((not iscommand_start(data)) & isname_state(data)) | (timestamp - self.timestamp > self.cooldown):
+        if ((not self.iscommand_start(data)) & self.isname_state(data)) | (timestamp - self.timestamp > self.cooldown):
             self.timestamp = timestamp  # обновление значения времени последнего апдейта
             return await handler(event, data)
         else:
             return
 
+    def iscommand_start(self, data: Dict[str, Any]) -> bool:
+        # проверка текста сообщения на соответствие '/start'
+        return data['event_update'].message.text == '/start'
 
-def iscommand_start(data: Dict[str, Any]) -> bool:
-    # проверка текста сообщения на соответствие '/start'
-    return data['event_update'].message.text == '/start'
-
-
-def isname_state(data: Dict[str, Any]) -> bool:
-    # проверка активного состояния FSM на соответствие 'Form:user_name'
-    return data['raw_state'] == 'Form:user_name'
+    def isname_state(self, data: Dict[str, Any]) -> bool:
+        # проверка активного состояния FSM на соответствие 'Form:user_name'
+        return data['raw_state'] == 'Form:user_name'
 
 
 async def start():
     # сохранение экземпляров Bot и Dispatcher
-    bot = Bot(os.getenv("BOT_TOKEN"))
+    bot = Bot(API_TOKEN)
     dp = Dispatcher()
 
     # регистрация хендлеров для Message

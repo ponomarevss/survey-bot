@@ -18,7 +18,7 @@ async def command_start_message_handler(message: Message, state: FSMContext) -> 
     :return:
     """
     await state.clear()                                     # сброс предыдущего состояния FSM
-    await state.update_data(user_id=str(uuid.uuid4()))      # установка нового user_id
+    await state.update_data(session_id=str(uuid.uuid4()))   # установка нового session_id
     await state.set_state(Form.user_name)                   # установка активного состояния FSM
 
     # обращение к респонденту, запрос имени
@@ -68,7 +68,7 @@ async def unknown_message_handler(message: Message):
 async def start_survey_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     """
     Обработка коллбэка начала теста. Задача:
-    - проверить коллбэк на соответствие текущему user_id;
+    - проверить коллбэк на соответствие текущему session_id;
     - в случае успеха, вывести на экран первый вопрос и клавиатуру с вариантами ответов;
     - в случае провала, выполнить действия, связанные с некорректным использованием кнопок.
     
@@ -78,8 +78,8 @@ async def start_survey_callback_handler(callback: CallbackQuery, state: FSMConte
     """
     data = await state.get_data()       # получение данных из FSM
 
-    # проверка эквивалентности user_id полученному из коллбэка
-    if data['user_id'] == callback.data.split('_')[2]:
+    # проверка эквивалентности session_id полученному из коллбэка
+    if data['session_id'] == callback.data.split('_')[2]:
 
         # вывод вопроса и клавиатуры с вариантами ответа
         await callback.message.edit_text(compose_text(data), reply_markup=get_answers_ikb(data))
@@ -94,7 +94,7 @@ async def start_survey_callback_handler(callback: CallbackQuery, state: FSMConte
 async def ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     """
     Обработка коллбэка ответов на вопросы. Задача:
-    - проверить коллбэк на соответствие текущему user_id;
+    - проверить коллбэк на соответствие текущему session_id;
     - в случае провала, выполнить действия, связанные с некорректным использованием кнопок;
     - в случае успеха, выполнить проверку, является ли вопрос последним:
         - если вопрос не последний, отобразить ответ на предыдущий вопрос,
@@ -107,8 +107,8 @@ async def ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> No
     """
     data = await state.get_data()       # получение данных из FSM
 
-    # проверка эквивалентности user_id полученному из коллбэка
-    if data['user_id'] == callback.data.split('_')[2]:
+    # проверка эквивалентности session_id полученному из коллбэка
+    if data['session_id'] == callback.data.split('_')[2]:
 
         # обновление данных FSM на основе данных коллбэка
         await state.update_data(answers=compose_updated_answers(callback.data, data))
@@ -147,13 +147,13 @@ async def incorrect_button_usage_callback_handler(callback: CallbackQuery):
 
 def get_start_survey_ikb(data: Dict[str, Any]) -> InlineKeyboardMarkup:
     """
-    Предоставление клавиатуры для начала теста. Формирование коллбэка с user_id.
+    Предоставление клавиатуры для начала теста. Формирование коллбэка с session_id.
 
     :param data:
     :return:
     """
-    user_id = data['user_id']                   # получение user_id из FSM
-    callback_data = f'start_survey_{user_id}'   # формирование коллбэка с user_id
+    session_id = data['session_id']                   # получение session_id из FSM
+    callback_data = f'start_survey_{session_id}'   # формирование коллбэка с session_id
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="Начать тест", callback_data=callback_data)]
@@ -164,7 +164,7 @@ def get_start_survey_ikb(data: Dict[str, Any]) -> InlineKeyboardMarkup:
 def get_answers_ikb(data: Dict[str, Any]) -> InlineKeyboardMarkup:
     """
     Предоставление клавиатуры с вариантами ответа, либо None, если текущий индекс за пределами листа вопросов.
-    Формирование коллбэков на основе префикса "ans", хэш значения варианта ответа и user_id.
+    Формирование коллбэков на основе префикса "ans", хэш значения варианта ответа и session_id.
 
     :param data:
     :return:
@@ -172,7 +172,7 @@ def get_answers_ikb(data: Dict[str, Any]) -> InlineKeyboardMarkup:
     buttons = list()
     ind = data['current_index']         # текущий индекс
     questions = data['questions']       # список вопросов
-    user_id = data['user_id']           # user_id
+    session_id = data['session_id']           # session_id
     ikb = None
 
     # проверка индекса на вхождение в лист вопросов
@@ -182,7 +182,7 @@ def get_answers_ikb(data: Dict[str, Any]) -> InlineKeyboardMarkup:
 
         # формирование списка кнопок с вариантами ответов
         for element in answers:
-            callback_data = f"ans_{hash(element)}_{user_id}"    # коллбэк с хэш варианта ответа и user_id
+            callback_data = f"ans_{hash(element)}_{session_id}"    # коллбэк с хэш варианта ответа и session_id
             buttons.append(InlineKeyboardButton(text=element, callback_data=callback_data))
 
         # формирование клавиатуры 2 на 2
