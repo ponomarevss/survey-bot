@@ -9,9 +9,13 @@ from aiogram.filters import CommandStart
 from aiogram.types import TelegramObject, Message
 
 from admin import API_TOKEN
-from callback_query import command_start_message_handler, init_state_message_handler, unknown_message_handler, \
-    incorrect_button_usage_callback_handler, \
-    start_survey_callback_handler, ans_callback_handler
+from callback_query import (
+    command_start_message_handler,
+    init_state_message_handler, unknown_message_handler,
+    incorrect_button_usage_callback_handler,
+    start_survey_callback_handler,
+    ans_callback_handler
+)
 from states import Form
 
 
@@ -19,6 +23,7 @@ class AntispamMiddleware(BaseMiddleware):
     """
     Задача AntispamMiddleware ловить частые текстовые сообщения во всех возможных случаях
     """
+
     def __init__(self, cooldown: int) -> None:
         self.timestamp = time.time()
         self.cooldown = cooldown
@@ -67,7 +72,7 @@ async def start():
     dp.callback_query.register(incorrect_button_usage_callback_handler)
 
     # регистрация Middleware
-    dp.message.middleware.register(AntispamMiddleware(cooldown=5))
+    # dp.message.middleware.register(AntispamMiddleware(cooldown=5))
 
     # запуск сессии бота с закрытием при ошибке
     try:

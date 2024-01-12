@@ -10,10 +10,19 @@ class Form(StatesGroup):
 
 
 class StateConfig(StatesGroup):
-    s_st_scenario = State()
-    s_st_steep = State()
     s_message_id = State()
 
+    user_id = State()
+    s_username = State()
+    s_first_name = State()
+    s_last_name = State()
+    s_language_code = State()
+    s_is_premium = State()
+
+    s_st_scenario = State()
+    s_st_step = State()
+
+    dt_dateupd = State()
     s_month = State()
     s_year = State()
     s_show_date = State()
@@ -112,6 +121,8 @@ class StateConfig(StatesGroup):
 
 
 class StateTestAnswer(StatesGroup):
+    s_st_step = State()
+
     s_state1 = State()
     s_state2 = State()
     s_state3 = State()
