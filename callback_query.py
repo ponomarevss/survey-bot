@@ -96,10 +96,12 @@ async def start_survey_callback_handler(callback: CallbackQuery, state: FSMConte
     # проверка эквивалентности session_id полученному из коллбэка
     if data['session_id'] == callback.data.split('_')[2]:
 
+        # TODO остановился здесь
+
         # вывод вопроса и клавиатуры с вариантами ответа
         await callback.message.edit_text(compose_text(data), reply_markup=get_answers_ikb(data))
 
-        await state.update_data(current_index=data['current_index'] + 1)  # инкремент текущего индекса в FSM
+        await state.update_data(s_st_step=data['s_st_step'] + 1)  # инкремент текущего индекса в FSM
     else:
 
         # выполнение действий, связанных с некорректным использованием кнопок
@@ -109,7 +111,7 @@ async def start_survey_callback_handler(callback: CallbackQuery, state: FSMConte
 async def ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     """
     Обработка коллбэка ответов на вопросы. Задача:
-    - проверить коллбэк на соответствие текущему session_id;
+    - проверить коллбэк на соответствие текущему s_message_id;
     - в случае провала, выполнить действия, связанные с некорректным использованием кнопок;
     - в случае успеха, выполнить проверку, является ли вопрос последним:
         - если вопрос не последний, отобразить ответ на предыдущий вопрос,
@@ -122,8 +124,8 @@ async def ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> No
     """
     data = await state.get_data()  # получение данных из FSM
 
-    # проверка эквивалентности session_id полученному из коллбэка
-    if data['session_id'] == callback.data.split('_')[2]:
+    # проверка эквивалентности s_message_id полученному из коллбэка
+    if data['s_message_id'] == callback.data.split('_')[2]:
 
         # обновление данных FSM на основе данных коллбэка
         await state.update_data(answers=compose_updated_answers(callback.data, data))
