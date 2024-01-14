@@ -47,11 +47,13 @@ class AntispamMiddleware(BaseMiddleware):
         else:
             return
 
-    def iscommand_start(self, data: Dict[str, Any]) -> bool:
+    @staticmethod
+    def iscommand_start(data: Dict[str, Any]) -> bool:
         # проверка текста сообщения на соответствие '/start'
         return data['event_update'].message.text == '/start'
 
-    def isname_state(self, data: Dict[str, Any]) -> bool:
+    @staticmethod
+    def isname_state(data: Dict[str, Any]) -> bool:
         # проверка активного состояния FSM на соответствие 'Form:user_name'
         return data['raw_state'] == 'Form:user_name'
 
@@ -63,12 +65,12 @@ async def start():
 
     # регистрация хендлеров для Message
     dp.message.register(command_start_message_handler, CommandStart())
-    dp.message.register(init_state_message_handler, Form.user_name)
+    dp.message.register(init_state_message_handler, Form.s_user_name)
     dp.message.register(unknown_message_handler)
 
     # регистрация хендлеров для CallbackQuery
-    dp.callback_query.register(start_survey_callback_handler, Form.answers, F.data.startswith("start_survey"))
-    dp.callback_query.register(ans_callback_handler, Form.answers, F.data.startswith("ans"))
+    dp.callback_query.register(start_survey_callback_handler, Form.list_answers, F.data.startswith("start_survey"))
+    dp.callback_query.register(ans_callback_handler, Form.list_answers, F.data.startswith("ans"))
     dp.callback_query.register(incorrect_button_usage_callback_handler)
 
     # регистрация Middleware
