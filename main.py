@@ -21,12 +21,12 @@ from states import Form
 
 class AntispamMiddleware(BaseMiddleware):
     """
-    Задача AntispamMiddleware ловить частые текстовые сообщения во всех возможных случаях
+    Задача AntispamMiddleware ловить частые текстовые сообщения
     """
 
-    def __init__(self, cooldown: int) -> None:
-        self.timestamp = time.time()
-        self.cooldown = cooldown
+    def __init__(self, v_in_i_cooldown: int) -> None:
+        self.f_timestamp = 0.0
+        self.i_cooldown = v_in_i_cooldown
 
     async def __call__(
             self, handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
@@ -34,28 +34,28 @@ class AntispamMiddleware(BaseMiddleware):
             data: Dict[str, Any]
     ) -> Any:
         # сохранение значения времени получения апдейта
-        timestamp = time.time()
+        f_timestamp = time.time()
 
-        # апдейт дойдет до хендлеров если будут выполнены условия:
-        #   он пришел позже self.cooldown
-        #           или
-        #   если после команды '/start', когда активное состояние FSM соответствует 'Form:user_name',
-        #   сразу следует текстовое сообщение отличное от '/start'
-        if ((not self.iscommand_start(data)) & self.isname_state(data)) | (timestamp - self.timestamp > self.cooldown):
-            self.timestamp = timestamp  # обновление значения времени последнего апдейта
-            return await handler(event, data)
+        # если разница временных отметок более i_cooldown
+        if f_timestamp - self.f_timestamp > self.i_cooldown:
+            self.f_timestamp = f_timestamp      # обновление значения времени последнего апдейта
+            return await handler(event, data)   # апдейт идет к хендлерам
         else:
-            return
+            return                              # иначе дроп апдейта
 
     @staticmethod
-    def iscommand_start(data: Dict[str, Any]) -> bool:
+    def iscommand_start(v_in_dict_data: Dict[str, Any]) -> bool:
         # проверка текста сообщения на соответствие '/start'
-        return data['event_update'].message.text == '/start'
+        return v_in_dict_data['event_update'].message.text == '/start'
 
     @staticmethod
-    def isname_state(data: Dict[str, Any]) -> bool:
-        # проверка активного состояния FSM на соответствие 'Form:user_name'
-        return data['raw_state'] == 'Form:user_name'
+    def isname_state(v_in_dict_data: Dict[str, Any]) -> bool:
+        # проверка активного состояния FSM на соответствие 'Form:s_user_name'
+        return v_in_dict_data['raw_state'] == 'Form:s_user_name'
+
+    @staticmethod
+    def quick_name_after_start(v_in_b_state, v_in_b_start) -> bool:
+        return v_in_b_state and (not v_in_b_start)
 
 
 async def start():
@@ -74,7 +74,7 @@ async def start():
     dp.callback_query.register(incorrect_button_usage_callback_handler)
 
     # регистрация Middleware
-    # dp.message.middleware.register(AntispamMiddleware(cooldown=5))
+    dp.message.middleware.register(AntispamMiddleware(v_in_i_cooldown=3))
 
     # запуск сессии бота с закрытием при ошибке
     try:
