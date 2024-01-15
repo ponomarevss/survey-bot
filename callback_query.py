@@ -18,53 +18,29 @@ async def command_start_message_handler(message: Message, state: FSMContext) -> 
     :return:
     """
     await state.clear()
-    await save_user_data(message, state)                    # запись данных пользователя в хранилище FSMContext
-    await state.set_state(Form.s_user_name)                   # установка активного состояния FSMContext
+    await save_user_data(message, state)  # запись данных пользователя в хранилище FSMContext
+    await state.set_state(Form.s_user_name)  # установка активного состояния FSMContext
 
-    text = (f"Добро пожаловать! Это бот для теста знаний.\n"
-            f"Как я могу к вам обращаться? (Введите свое имя)")
-    await message.answer(text=text)
-
-
-# async def init_state_message_handler(message: Message, state: FSMContext) -> None:
-#     """
-#     Обработка текстового сообщения после установки 'Form:user_name' в качестве активного состояния FSM.
-#
-#     :param message:
-#     :param state:
-#     :return:
-#     """
-#     size = 10  # количество вопросов в тесте
-#
-#     # установка и получение данных FSM
-#     data = await state.update_data(
-#         user_name=message.text,                 # имя респондента
-#         current_index=0,                        # исходный индекс для обращения к спискам вопросов и ответов
-#         questions=get_questions(size),          # список вопросов из источника
-#         answers=[None for _ in range(size)]     # пустой лист ответов
-#     )
-#     await state.set_state(Form.list_answers)    # установка активного состояния FSM
-#
-#     # обращение к респонденту, получение кнопки запуска теста
-#     text = (f"Уважаемый {data['user_name']}, давайте начнем наш тест.\n"
-#             f"Нажмите кнопку 'Начать тест', когда будете готовы.")
-#     await message.answer(text=text, reply_markup=get_start_survey_ikb(data))
+    s_text = (f"Добро пожаловать! Это бот для теста знаний.\n"
+              f"Как я могу к вам обращаться? (Введите свое имя)")
+    await message.answer(text=s_text)
 
 
 async def init_state_message_handler(message: Message, state: FSMContext) -> None:
-    await state.set_state(Form.list_answers)            # установка активного состояния FSM
+    await state.set_state(Form.list_answers)  # установка активного состояния FSM
 
-    i_size = 10                                         # размер вопросника
+    i_size = 10  # размер вопросника
     list_questions = get_questions_from_source(i_size)  # получение вопросов из источника
     data = await state.update_data(
-        data=create_questions_dict(list_questions),     # добавление словаря с вопросами и ответами
-        s_user_name=message.text,                       # имя респондента
-        s_st_step=str(1),                               # исходный индекс для обращения к спискам вопросов и ответов
+        data=create_questions_dict(list_questions),  # добавление словаря с вопросами и ответами
+        s_user_name=message.text,  # имя респондента
+        i_size=i_size,  # количество вопросов
+        i_st_step=1,  # исходный индекс для обращения к спискам вопросов и ответов
     )
 
-    text = (f"{data['s_user_name']}, давайте начнем наш тест.\n"
-            f"Нажмите кнопку 'Начать тест', когда будете готовы.")
-    await message.answer(text=text, reply_markup=get_start_survey_ikb(data))
+    s_text = (f"{data['s_user_name']}, давайте начнем наш тест.\n"
+              f"Нажмите кнопку 'Начать тест', когда будете готовы.")
+    await message.answer(text=s_text, reply_markup=get_start_survey_ikb(data))
 
 
 async def unknown_message_handler(message: Message):
@@ -94,16 +70,12 @@ async def start_survey_callback_handler(callback: CallbackQuery, state: FSMConte
     data = await state.get_data()  # получение данных из FSM
 
     # проверка эквивалентности session_id полученному из коллбэка
-    if data['session_id'] == callback.data.split('_')[2]:
-
-        # TODO остановился здесь
-
+    if data['s_message_id'] == callback.data.split('_')[2]:
         # вывод вопроса и клавиатуры с вариантами ответа
         await callback.message.edit_text(compose_text(data), reply_markup=get_answers_ikb(data))
 
-        await state.update_data(s_st_step=data['s_st_step'] + 1)  # инкремент текущего индекса в FSM
+        await state.update_data(i_st_step=data['i_st_step'] + 1)  # инкремент текущего индекса в FSM
     else:
-
         # выполнение действий, связанных с некорректным использованием кнопок
         await incorrect_button_usage_callback_handler(callback)
 
@@ -126,6 +98,8 @@ async def ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> No
 
     # проверка эквивалентности s_message_id полученному из коллбэка
     if data['s_message_id'] == callback.data.split('_')[2]:
+
+        # TODO остановился здесь
 
         # обновление данных FSM на основе данных коллбэка
         await state.update_data(answers=compose_updated_answers(callback.data, data))
@@ -151,6 +125,49 @@ async def ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> No
         await incorrect_button_usage_callback_handler(callback)
 
 
+# async def ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
+#     """
+#     Обработка коллбэка ответов на вопросы. Задача:
+#     - проверить коллбэк на соответствие текущему s_message_id;
+#     - в случае провала, выполнить действия, связанные с некорректным использованием кнопок;
+#     - в случае успеха, выполнить проверку, является ли вопрос последним:
+#         - если вопрос не последний, отобразить ответ на предыдущий вопрос,
+#             вывести следующий вопрос и клавиатуру с вариантами ответов;
+#         - если вопрос последний, отобразить ответ на предыдущий вопрос, отобразить результаты теста.
+#
+#     :param callback:
+#     :param state:
+#     :return:
+#     """
+#     data = await state.get_data()  # получение данных из FSM
+#
+#     # проверка эквивалентности s_message_id полученному из коллбэка
+#     if data['s_message_id'] == callback.data.split('_')[2]:
+#
+#         # обновление данных FSM на основе данных коллбэка
+#         await state.update_data(answers=compose_updated_answers(callback.data, data))
+#
+#         # в зависимости от того, последний вопрос или нет:
+#         #   вывод ответа на предыдущий вопрос,
+#         #   текущего вопроса,
+#         #   результата теста
+#         await callback.message.edit_text(compose_text(data), reply_markup=get_answers_ikb(data))
+#
+#         current_index = data['current_index']  # получение текущего индекса
+#
+#         # проверка текущего индекса:
+#         #   если индекс за пределами листа вопросов, активное сбросить состояние FSM, если нет, выполнить инкремент
+#         if current_index in range(0, len(data['questions'])):
+#             await state.update_data(current_index=data['current_index'] + 1)  # инкремент текущего индекса в FSM
+#         else:
+#             await state.set_state(None)  # установка активного состояния FSM
+#
+#     else:
+#
+#         # выполнение действий, связанных с некорректным использованием кнопок
+#         await incorrect_button_usage_callback_handler(callback)
+#
+#
 async def incorrect_button_usage_callback_handler(callback: CallbackQuery):
     """
     Обработка коллбэка ответов на вопросы. У сообщения сохраняется текст, но удаляется клавиатура.
@@ -160,22 +177,6 @@ async def incorrect_button_usage_callback_handler(callback: CallbackQuery):
     """
     await callback.message.edit_text(text=callback.message.text, reply_markup=None)
     await callback.answer("Некорректное использование кнопки.")
-
-
-# def get_start_survey_ikb(data: Dict[str, Any]) -> InlineKeyboardMarkup:
-#     """
-#     Предоставление клавиатуры для начала теста. Формирование коллбэка с session_id.
-#
-#     :param data:
-#     :return:
-#     """
-#     session_id = data['session_id']  # получение session_id из FSM
-#     callback_data = f'start_survey_{session_id}'  # формирование коллбэка с session_id
-#     return InlineKeyboardMarkup(
-#         inline_keyboard=[
-#             [InlineKeyboardButton(text="Начать тест", callback_data=callback_data)]
-#         ]
-#     )
 
 
 def get_start_survey_ikb(data: Dict[str, Any]) -> InlineKeyboardMarkup:
@@ -197,29 +198,30 @@ def get_start_survey_ikb(data: Dict[str, Any]) -> InlineKeyboardMarkup:
 def get_answers_ikb(data: Dict[str, Any]) -> InlineKeyboardMarkup:
     """
     Предоставление клавиатуры с вариантами ответа, либо None, если текущий индекс за пределами листа вопросов.
-    Формирование коллбэков на основе префикса "ans", хэш значения варианта ответа и session_id.
+    Формирование коллбэков на основе префикса "ans", хэш значения варианта ответа и s_message_id.
 
     :param data:
     :return:
     """
-    buttons = list()
-    ind = data['current_index']  # текущий индекс
-    questions = data['questions']  # список вопросов
-    session_id = data['session_id']  # session_id
-    ikb = None
+    s_message_id = data['s_message_id']             # s_message_id как идентификатор текущей сессии
+
+    i_step = data['i_st_step']                      # текущий индекс
+    i_size = data['i_size']                         # количество вопросов
+
+    list_buttons = list()                           # список кнопок
+    ikb = None                                      # начальное значение клавиатуры
 
     # проверка индекса на вхождение в лист вопросов
-    if ind in range(len(questions)):
-        question = questions[ind]  # объект вопрос: (текст вопроса, [варианты ответов], правильный ответ)
-        answers = question[1]  # варианты ответов
+    if i_step <= i_size:
+        for i_key_position_index in range(1, 5):  # i_key_position_index = 1 ... 4
+            s_answer_key = 's_answer' + str((i_step - 1) + i_key_position_index)
+            s_answer = data[s_answer_key]
 
-        # формирование списка кнопок с вариантами ответов
-        for element in answers:
-            callback_data = f"ans_{hash(element)}_{session_id}"  # коллбэк с хэш варианта ответа и session_id
-            buttons.append(InlineKeyboardButton(text=element, callback_data=callback_data))
+            callback_data = f"ans_{hash(s_answer)}_{s_message_id}"  # коллбэк с хэш варианта ответа и s_message_id
+            list_buttons.append(InlineKeyboardButton(text=s_answer, callback_data=callback_data))
 
         # формирование клавиатуры 2 на 2
-        ikb = InlineKeyboardMarkup(inline_keyboard=[buttons[:2], buttons[2:]])
+        ikb = InlineKeyboardMarkup(inline_keyboard=[list_buttons[:2], list_buttons[2:]])
     return ikb
 
 
@@ -233,27 +235,26 @@ def compose_text(data: Dict[str, Any]) -> str:
     :param data:
     :return:
     """
-    questions = data['questions']  # список вопрос: [(текст вопроса, [варианты ответов], правильный ответ)]
-    current_index = data['current_index']  # текущий индекс
-    answers = data['answers']  # список правильных ответов
-    name = data['user_name']  # user_name
-    text = f'Тестирование кандидата {name}:\n\n'  # часть текста с обращением
+    s_user_name = data['s_user_name']
+    s_text = f'Тестирование кандидата {s_user_name}:\n\n'   # часть текста с обращением
+
+    i_step = data['i_st_step']                              # текущий индекс
+    i_size = data['i_size']                                 # количество вопросов
 
     # цикл с формированием текста для элементов списка вопросов и ответов от 0 до текущего
-    for i in range(current_index + 1):
-        prev_index = i - 1  # индекс ответа на предыдущий вопрос
+    for i in range(1, i_step + 1):                          # i_step = 1 ... 10
+        i_previous_step = i - 1                             # индекс ответа на предыдущий вопрос
+        if i_previous_step > 0:
+            s_answer_key = 's_answer' + str(i_previous_step)
+            s_text += f'Ответ: {data[s_answer_key]}\n\n'    # добавление ответа на предыдущий вопрос
 
-        # проверка наличия предыдущего вопроса
-        if prev_index in range(len(questions)):
-            text += f'Ответ: {answers[prev_index]}\n\n'  # добавление ответа на предыдущий вопрос
-        question_num = i + 1  # номер вопроса для отображения
-
-        # проверка наличия вопроса для текущего индекса
-        if i in range(len(questions)):
-            text += f'{question_num}. {questions[i][0]}\n'  # добавление текущего вопроса
+        if i <= i_size:
+            s_question_key = 's_question' + str(i)          # ключ для вопроса
+            s_question = data[s_question_key]               # вопрос из FSMContext хранилища
+            s_text += f'{i}. {s_question}\n'                # добавление текущего вопроса
         else:
-            text += calculate_result(data)  # вывод результата теста
-    return text
+            s_text += calculate_result(data)                # вывод результата теста
+    return s_text
 
 
 def compose_updated_answers(callback_str: str, data: Dict[str, Any]) -> List[str]:
@@ -297,19 +298,24 @@ def calculate_result(data: Dict[str, Any]) -> str:
     :param data:
     :return:
     """
-    questions = data['questions']  # список вопрос: [(текст вопроса, [варианты ответов], правильный ответ)]
-    answers = data['answers']  # список ответов
-    correct = 0  # счетчик правильных ответов
-    size = len(answers)  # количество вопросов
+
+    i_correct = 0               # счетчик правильных ответов
+    i_size = data['i_size']     # количество вопросов
 
     # поиск совпадений ответов с правильным из объекта (текст вопроса, [варианты ответов], правильный ответ)
     # с соответствующим инкрементом счетчика правильных ответов
-    for i in range(size):
-        if questions[i][2] == answers[i]:
-            correct += 1
+    for i in range(1, i_size + 1):
+        s_question_key = 's_question' + str(i)      # ключ для вопроса
+        s_question = data[s_question_key]           # вопрос из FSMContext хранилища
+
+        s_answer_key = 's_answer' + str(i)          # ключ для ответа
+        s_answer = data[s_answer_key]               # ответ из FSMContext хранилища
+
+        if s_question == s_answer:
+            i_correct += 1
 
     # предоставляется строка с результатом
-    return f'Результат: {correct} из {size} или {(correct / size) * 100}%'
+    return f'Результат: {i_correct} из {i_size} или {(i_correct / i_size) * 100}%'
 
 
 def get_questions_from_source(size: int) -> list[tuple[str, list[str], str]]:
@@ -356,18 +362,12 @@ def create_questions_dict(v_in_list_questions: list[tuple[str, list[str], str]])
             s_answer_value = v_in_list_questions[i_list_questions_index][1][i_list_answers_index]
             dict_result[s_answer_key] = s_answer_value
 
-    print(*dict_result.items(), sep='\n')
     return dict_result
-
-
-async def clear_state_groups(v_in_state):
-    await v_in_state.clear()
-    await v_in_state.set_state(None)
 
 
 async def save_user_data(v_in_message, v_in_state):
     data = await v_in_state.update_data(
-        s_message_id=v_in_message.message_id,
+        s_message_id=str(v_in_message.message_id),
         user_id=v_in_message.from_user.id,
         s_username=v_in_message.from_user.username,
         s_first_name=v_in_message.from_user.first_name,
