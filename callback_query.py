@@ -5,7 +5,7 @@ from typing import Dict, Any
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
-from source import questions_source
+from source import questions_source, QUIZ_SIZE, OPTIONS_NUM
 from states import Form
 
 
@@ -29,12 +29,11 @@ async def command_start_message_handler(message: Message, state: FSMContext) -> 
 async def init_state_message_handler(message: Message, state: FSMContext) -> None:
     await state.set_state(Form.list_answers)  # установка активного состояния FSMContext
 
-    i_size = 10  # размер вопросника
-    list_questions = get_questions_from_source(i_size)  # получение вопросов из источника
+    list_questions = get_questions_from_source(QUIZ_SIZE)  # получение вопросов из источника
     dict_data = await state.update_data(
         data=create_questions_dict(list_questions),  # добавление словаря с вопросами и ответами
         s_user_name=message.text,  # имя респондента
-        i_size=i_size,  # количество вопросов
+        i_size=QUIZ_SIZE,  # количество вопросов
         i_st_step=1,  # номер шага
     )
 
@@ -150,15 +149,14 @@ def get_answers_ikb(v_in_dict_data: Dict[str, Any]) -> InlineKeyboardMarkup:
 
     # проверка индекса на вхождение в лист вопросов
     if i_step <= i_size:
-        for i_key_position_index in range(1, 5):  # i_key_position_index = 1 ... 4
-            s_answer_key = 's_answer' + str((i_step - 1) * 4 + i_key_position_index)
+        for i_key_position_index in range(1, OPTIONS_NUM + 1):  # i_key_position_index = 1 ... OPTIONS_NUM
+            s_answer_key = 's_answer' + str((i_step - 1) * OPTIONS_NUM + i_key_position_index)
             s_answer = v_in_dict_data[s_answer_key]
 
             s_callback_data = f"ans_{hash(s_answer)}_{s_message_id}"  # коллбэк с хэш варианта ответа и s_message_id
             list_buttons.append(InlineKeyboardButton(text=s_answer, callback_data=s_callback_data))
 
-        # формирование клавиатуры 2 на 2
-        ikb = InlineKeyboardMarkup(inline_keyboard=[list_buttons[:2], list_buttons[2:]])
+        ikb = InlineKeyboardMarkup(inline_keyboard=[list_buttons[:2], list_buttons[2:4], list_buttons[4:]])
     return ikb
 
 
@@ -208,7 +206,7 @@ def convert_callback_to_user_answer(v_in_s_callback: str, v_in_dict_data: Dict[s
     i_previous_step = v_in_dict_data['i_st_step'] - 1  # номер предыдущего шага
     s_state_key = 's_state' + str(i_previous_step)  # ключ для ответа пользователя
 
-    for i in range(i_previous_step * 4 - 3, i_previous_step * 4 + 1):
+    for i in range(i_previous_step * OPTIONS_NUM - (OPTIONS_NUM - 1), i_previous_step * OPTIONS_NUM + 1):
         s_answer_key = 's_answer' + str(i)
         s_answer = v_in_dict_data[s_answer_key]
         if hash(s_answer) == i_callback_hash:
@@ -284,7 +282,7 @@ def create_questions_dict(v_in_list_questions: list[tuple[str, list[str], str]])
             # нумерация полей s_answer# в StateTestAnswer начинается с 1
             i_k = i_list_answers_index + 1
 
-            s_answer_key = 's_answer' + str(i_list_questions_index * 4 + i_k)
+            s_answer_key = 's_answer' + str(i_list_questions_index * OPTIONS_NUM + i_k)
             s_answer_value = v_in_list_questions[i_list_questions_index][1][i_list_answers_index]
             dict_result[s_answer_key] = s_answer_value
 
