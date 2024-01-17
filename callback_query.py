@@ -19,11 +19,42 @@ async def command_start_message_handler(message: Message, state: FSMContext) -> 
     """
     await state.clear()
     await save_user_data(message, state)  # запись данных пользователя в хранилище FSMContext
-    await state.set_state(Form.s_user_name)  # установка активного состояния FSMContext
+    await state.set_state(Form.s_user_first_name)  # установка активного состояния FSMContext
 
-    s_text = (f"Добро пожаловать! Это бот для теста знаний.\n"
-              f"Как я могу к вам обращаться? (Введите свое имя)")
-    await message.answer(text=s_text)
+    await message.answer(f'Добро пожаловать! Это бот для теста знаний.\n'
+                         f'Пожалуйста, введите свое имя.')
+
+
+async def first_name_message_handler(message: Message, state: FSMContext) -> None:
+    """
+    Обработка введенного имени. Сохранение в FSMContext хранилище инеми пользователя. Приглашение ввода фамилии.
+
+    :param message:
+    :param state:
+    :return:
+    """
+    await state.set_state(Form.s_user_last_name)  # установка активного состояния FSMContext
+    data = await state.update_data(s_user_first_name=message.text)
+    await message.answer(f"Хорошо, {data['s_user_first_name']}.\n"
+                         f"Теперь введите свою фамилию.")
+
+
+# TODO add provide_phone_ikb (provide_phone, type_in_num).
+async def last_name_message_handler(message: Message, state: FSMContext) -> None:
+    """
+    Обработка введенного имени. Сохранение в FSMContext хранилище инеми пользователя. Приглашение ввода фамилии.
+
+    :param message:
+    :param state:
+    :return:
+    """
+    await state.set_state(Form.s_user_phone_num)  # установка активного состояния FSMContext
+    data = await state.update_data(s_user_last_name=message.text)
+    await message.answer(f"Отлично! {data['s_user_first_name']} {data['s_user_last_name']},\n"
+                         f"введите, пожалуйста, свой номер телефона.")
+
+
+# TODO create handlers for provide_phone_ikb
 
 
 async def init_state_message_handler(message: Message, state: FSMContext) -> None:
@@ -113,6 +144,17 @@ async def incorrect_button_usage_callback_handler(callback: CallbackQuery):
     """
     await callback.message.edit_text(text=callback.message.text, reply_markup=None)
     await callback.answer("Некорректное использование кнопки.")
+
+
+# TODO phone ikb
+def get_phone_options_ikb(v_in_dict_data: Dict[str, Any]) -> InlineKeyboardMarkup:
+    s_message_id = v_in_dict_data['s_message_id']  # получение s_message_id из FSM
+    s_callback_data = f'provide_phone_{s_message_id}'  # формирование коллбэка с s_message_id
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Предоставить телефон", callback_data=s_callback_data)]
+        ]
+    )
 
 
 def get_start_survey_ikb(v_in_dict_data: Dict[str, Any]) -> InlineKeyboardMarkup:

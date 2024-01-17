@@ -14,7 +14,7 @@ from callback_query import (
     init_state_message_handler, unknown_message_handler,
     incorrect_button_usage_callback_handler,
     start_survey_callback_handler,
-    ans_callback_handler
+    ans_callback_handler, first_name_message_handler, last_name_message_handler
 )
 from states import Form
 
@@ -43,20 +43,6 @@ class AntispamMiddleware(BaseMiddleware):
         else:
             return                              # иначе дроп апдейта
 
-    @staticmethod
-    def iscommand_start(v_in_dict_data: Dict[str, Any]) -> bool:
-        # проверка текста сообщения на соответствие '/start'
-        return v_in_dict_data['event_update'].message.text == '/start'
-
-    @staticmethod
-    def isname_state(v_in_dict_data: Dict[str, Any]) -> bool:
-        # проверка активного состояния FSM на соответствие 'Form:s_user_name'
-        return v_in_dict_data['raw_state'] == 'Form:s_user_name'
-
-    @staticmethod
-    def quick_name_after_start(v_in_b_state, v_in_b_start) -> bool:
-        return v_in_b_state and (not v_in_b_start)
-
 
 async def start():
     # сохранение экземпляров Bot и Dispatcher
@@ -65,7 +51,9 @@ async def start():
 
     # регистрация хендлеров для Message
     dp.message.register(command_start_message_handler, CommandStart())
-    dp.message.register(init_state_message_handler, Form.s_user_name)
+    dp.message.register(first_name_message_handler, F.text, Form.s_user_first_name)
+    dp.message.register(last_name_message_handler, F.text, Form.s_user_last_name)
+    dp.message.register(init_state_message_handler, Form.s_user_phone_num)
     dp.message.register(unknown_message_handler)
 
     # регистрация хендлеров для CallbackQuery

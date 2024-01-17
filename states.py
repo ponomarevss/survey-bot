@@ -2,7 +2,9 @@ from aiogram.fsm.state import StatesGroup, State
 
 
 class Form(StatesGroup):
-    s_user_name = State()
+    s_user_first_name = State()
+    s_user_last_name = State()
+    s_user_phone_num = State()
     list_answers = State()
 
 
