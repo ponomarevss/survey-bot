@@ -145,7 +145,6 @@ async def start_survey_callback_handler(callback: CallbackQuery, state: FSMConte
     await state.update_data(i_st_step=dict_data['i_st_step'] + 1)  # инкремент текущего шага в FSMContext хранилище
 
 
-# TODO ans_callback_handler
 async def ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     dict_data = await state.get_data()  # получение данных из FSMContext хранилища
 
@@ -321,7 +320,6 @@ def convert_callback_to_user_answer(v_in_s_callback: str, v_in_dict_data: Dict[s
             return {s_state_key: s_answer}
 
 
-# TODO calculate_result
 def calculate_result(v_in_dict_data: Dict[str, Any]) -> int:
     """
     Подсчет результатов теста на основе данных из FSMContext хранилища.
