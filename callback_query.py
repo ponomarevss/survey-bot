@@ -2,6 +2,7 @@ import random
 import time
 from typing import Dict, Any
 
+import aiogram.methods.send_message
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
@@ -34,56 +35,90 @@ async def first_name_message_handler(message: Message, state: FSMContext) -> Non
     :return:
     """
     await state.set_state(Form.s_user_last_name)  # установка активного состояния FSMContext
-    data = await state.update_data(s_user_first_name=message.text)
-    await message.answer(f"Хорошо, {data['s_user_first_name']}.\n"
+    dict_data = await state.update_data(s_user_first_name=message.text)
+    await message.answer(f"Хорошо, {dict_data['s_user_first_name']}.\n"
                          f"Теперь введите свою фамилию.")
 
 
-# TODO add provide_phone_ikb (provide_phone, type_in_num).
 async def last_name_message_handler(message: Message, state: FSMContext) -> None:
     """
-    Обработка введенного имени. Сохранение в FSMContext хранилище инеми пользователя. Приглашение ввода фамилии.
+    Обработка введенной фамилии. Сохранение в FSMContext хранилище фамилии пользователя.
+    Приглашение ввода номера телефона.
 
     :param message:
     :param state:
     :return:
     """
     await state.set_state(Form.s_user_phone_num)  # установка активного состояния FSMContext
-    data = await state.update_data(s_user_last_name=message.text)
-    await message.answer(f"Отлично! {data['s_user_first_name']} {data['s_user_last_name']},\n"
-                         f"введите, пожалуйста, свой номер телефона.")
+    s_user_phone_num = '+7'
+    dict_data = await state.update_data(s_user_last_name=message.text, s_user_phone_num=s_user_phone_num)
+    await message.answer(f"Отлично! {dict_data['s_user_first_name']} {dict_data['s_user_last_name']},\n"
+                         f"введите, пожалуйста, свой номер телефона, начиная со второй цифры.\n"
+                         f"Телефон: <b>{s_user_phone_num}</b>",
+                         reply_markup=get_phone_input_ikb(dict_data))
 
 
-# TODO create handlers for provide_phone_ikb
+async def phone_input_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
+    """
+    Обработка ввода номера телефона.
+    :param callback:
+    :param state:
+    :return:
+    """
+    dict_data = await state.get_data()  # получение данных из FSMContext хранилища
+
+    # проверка коллбэка на принадлежность текущей сессии
+    if dict_data['s_message_id'] != callback.data.split('_')[2]:
+        await incorrect_button_usage_callback_handler(callback)
+        return
+
+    s_updated_num = dict_data['s_user_phone_num'] + callback.data.split('_')[1]
+    dict_data = await state.update_data(s_user_phone_num=s_updated_num)
+
+    await callback.message.edit_text(
+        f"Респондент: {dict_data['s_user_first_name']} {dict_data['s_user_last_name']}\n"
+        f"Телефон: <b>{s_updated_num}</b>",
+        reply_markup=get_phone_input_ikb(dict_data))
 
 
-async def init_state_message_handler(message: Message, state: FSMContext) -> None:
+async def phone_backspace_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
+    dict_data = await state.get_data()  # получение данных из FSMContext хранилища
+
+    # проверка коллбэка на принадлежность текущей сессии
+    if dict_data['s_message_id'] != callback.data.split('_')[2]:
+        await incorrect_button_usage_callback_handler(callback)
+        return
+
+    s_updated_num = dict_data['s_user_phone_num'][:-1]
+    dict_data = await state.update_data(s_user_phone_num=s_updated_num)
+
+    await callback.message.edit_text(
+        f"Респондент: {dict_data['s_user_first_name']} {dict_data['s_user_last_name']}\n"
+        f"Телефон: <b>{s_updated_num}</b>",
+        reply_markup=get_phone_input_ikb(dict_data))
+
+
+async def init_quiz_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
+    dict_data = await state.get_data()  # получение данных из FSMContext хранилища
+
+    # проверка коллбэка на принадлежность текущей сессии
+    if dict_data['s_message_id'] != callback.data.split('_')[2]:
+        await incorrect_button_usage_callback_handler(callback)
+        return
+
     await state.set_state(Form.list_answers)  # установка активного состояния FSMContext
 
     list_questions = get_questions_from_source(QUIZ_SIZE)  # получение вопросов из источника
     dict_data = await state.update_data(
         data=create_questions_dict(list_questions),  # добавление словаря с вопросами и ответами
-        s_user_name=message.text,  # имя респондента
         i_size=QUIZ_SIZE,  # количество вопросов
         i_st_step=1,  # номер шага
     )
 
-    s_text = (f"{dict_data['s_user_name']}, давайте начнем наш тест.\n"
-              f"Нажмите кнопку 'Начать тест', когда будете готовы.")
-    await message.answer(text=s_text, reply_markup=get_start_survey_ikb(dict_data))
-
-
-async def unknown_message_handler(message: Message):
-    """
-    Обработка некорректного текстового сообщения.
-
-    :param message:
-    :return:
-    """
-    await message.reply(
-        text='Некорректное текстовое сообщение.\n'
-             'Используйте предложенные кнопки для продолжения теста или команду "/start" для запуска новой сессии.'
-    )
+    s_text = (f"Респондент: {dict_data['s_user_first_name']} {dict_data['s_user_last_name']}\n"
+              f"Ознакомьтесь с 'положением об обработке персональных данных', "
+              f"затем нажмите кнопку 'Начать тест', когда будете готовы.")
+    await callback.message.edit_text(text=s_text, reply_markup=get_start_survey_ikb(dict_data))
 
 
 async def start_survey_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
@@ -99,40 +134,55 @@ async def start_survey_callback_handler(callback: CallbackQuery, state: FSMConte
     """
     dict_data = await state.get_data()  # получение данных из FSMContext хранилища
 
-    # проверка эквивалентности session_id полученному из коллбэка
-    if dict_data['s_message_id'] == callback.data.split('_')[2]:
-        # вывод вопроса и клавиатуры с вариантами ответа
-        await callback.message.edit_text(compose_text(dict_data), reply_markup=get_answers_ikb(dict_data))
-
-        await state.update_data(i_st_step=dict_data['i_st_step'] + 1)  # инкремент текущего шага в FSMContext хранилище
-    else:
-        # выполнение действий, связанных с некорректным использованием кнопок
+    # проверка коллбэка на принадлежность текущей сессии
+    if dict_data['s_message_id'] != callback.data.split('_')[2]:
         await incorrect_button_usage_callback_handler(callback)
+        return
+
+    # вывод вопроса и клавиатуры с вариантами ответа
+    await callback.message.edit_text(compose_text(dict_data), reply_markup=get_answers_ikb(dict_data))
+
+    await state.update_data(i_st_step=dict_data['i_st_step'] + 1)  # инкремент текущего шага в FSMContext хранилище
 
 
+# TODO ans_callback_handler
 async def ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     dict_data = await state.get_data()  # получение данных из FSMContext хранилища
 
     # проверка эквивалентности s_message_id полученному из коллбэка
-    if dict_data['s_message_id'] == callback.data.split('_')[2]:
-
-        # сохранение ответа пользователя с предыдущего шага
-        dict_data = await state.update_data(data=convert_callback_to_user_answer(callback.data, dict_data))
-
-        await callback.message.edit_text(compose_text(dict_data), reply_markup=get_answers_ikb(dict_data))
-
-        i_step = dict_data['i_st_step']  # текущий шаг
-        i_size = dict_data['i_size']  # количество вопросов
-
-        # проверка текущего шага:
-        if i_step <= i_size:
-            await state.update_data(i_st_step=dict_data['i_st_step'] + 1)  # инкремент текущего индекса в FSMContext
-        else:
-            await state.set_state(None)  # сброс активного состояния FSMContext
-
-    else:
-        # выполнение действий, связанных с некорректным использованием кнопок
+    if dict_data['s_message_id'] != callback.data.split('_')[2]:
         await incorrect_button_usage_callback_handler(callback)
+        return
+
+    # сохранение ответа пользователя с предыдущего шага
+    dict_data = await state.update_data(data=convert_callback_to_user_answer(callback.data, dict_data))
+    dict_data = await state.update_data(i_result=calculate_result(dict_data))
+
+    await callback.message.edit_text(compose_text(dict_data), reply_markup=get_answers_ikb(dict_data))
+
+    i_step = dict_data['i_st_step']  # текущий шаг
+    i_size = dict_data['i_size']  # количество вопросов
+
+    # проверка текущего шага:
+    if i_step <= i_size:
+        await state.update_data(i_st_step=dict_data['i_st_step'] + 1)  # инкремент текущего индекса в FSMContext
+    else:
+        print(dict_data['s_user_first_name'], dict_data['s_user_last_name'],
+              dict_data['s_user_phone_num'], dict_data['i_result'], sep='\n')
+        await state.set_state(None)  # сброс активного состояния FSMContext
+
+
+async def unknown_message_handler(message: Message):
+    """
+    Обработка некорректного текстового сообщения.
+
+    :param message:
+    :return:
+    """
+    await message.reply(
+        text='Некорректное текстовое сообщение.\n'
+             'Используйте предложенные кнопки для продолжения теста или команду "/start" для запуска новой сессии.'
+    )
 
 
 async def incorrect_button_usage_callback_handler(callback: CallbackQuery):
@@ -146,15 +196,27 @@ async def incorrect_button_usage_callback_handler(callback: CallbackQuery):
     await callback.answer("Некорректное использование кнопки.")
 
 
-# TODO phone ikb
-def get_phone_options_ikb(v_in_dict_data: Dict[str, Any]) -> InlineKeyboardMarkup:
+def get_phone_input_ikb(v_in_dict_data: Dict[str, Any]) -> InlineKeyboardMarkup:
     s_message_id = v_in_dict_data['s_message_id']  # получение s_message_id из FSM
-    s_callback_data = f'provide_phone_{s_message_id}'  # формирование коллбэка с s_message_id
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Предоставить телефон", callback_data=s_callback_data)]
-        ]
-    )
+
+    list_buttons = list()  # список кнопок
+    for i in range(0, 10):
+        s_callback_data = f'phone_{i}_{s_message_id}'  # формирование коллбэка с s_message_id
+        list_buttons.append(InlineKeyboardButton(text=f'{i}', callback_data=s_callback_data))
+
+    backspace_button = InlineKeyboardButton(text='<-', callback_data=f'backspace_button_{s_message_id}')
+    confirm_button = InlineKeyboardButton(text='OK', callback_data=f'confirm_button_{s_message_id}')
+
+    i_length = len(v_in_dict_data['s_user_phone_num'])
+    ikb_markup = InlineKeyboardMarkup(inline_keyboard=[list_buttons[1:4], list_buttons[4:7], list_buttons[7:]])
+    if i_length == 2:
+        ikb_markup.inline_keyboard.append([list_buttons[0]])
+    elif i_length >= 12:
+        ikb_markup.inline_keyboard.clear()
+        ikb_markup.inline_keyboard.append([backspace_button, confirm_button])
+    else:
+        ikb_markup.inline_keyboard.append([backspace_button, list_buttons[0]])
+    return ikb_markup
 
 
 def get_start_survey_ikb(v_in_dict_data: Dict[str, Any]) -> InlineKeyboardMarkup:
@@ -165,10 +227,12 @@ def get_start_survey_ikb(v_in_dict_data: Dict[str, Any]) -> InlineKeyboardMarkup
     :return:
     """
     s_message_id = v_in_dict_data['s_message_id']  # получение s_message_id из FSM
-    s_callback_data = f'start_survey_{s_message_id}'  # формирование коллбэка с s_message_id
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Начать тест", callback_data=s_callback_data)]
+            [
+                InlineKeyboardButton(text='Положение об обработке персональных данных', url='https://t.me/gaga_games'),
+                InlineKeyboardButton(text="Начать тест", callback_data=f'start_survey_{s_message_id}')
+            ]
         ]
     )
 
@@ -198,7 +262,9 @@ def get_answers_ikb(v_in_dict_data: Dict[str, Any]) -> InlineKeyboardMarkup:
             s_callback_data = f"ans_{hash(s_answer)}_{s_message_id}"  # коллбэк с хэш варианта ответа и s_message_id
             list_buttons.append(InlineKeyboardButton(text=s_answer, callback_data=s_callback_data))
 
-        ikb = InlineKeyboardMarkup(inline_keyboard=[list_buttons[:2], list_buttons[2:4], list_buttons[4:]])
+        ikb = InlineKeyboardMarkup(
+            inline_keyboard=[list_buttons[:2], list_buttons[2:4], list_buttons[4:6], [list_buttons[6]]]
+        )
     return ikb
 
 
@@ -212,8 +278,8 @@ def compose_text(v_in_dict_data: Dict[str, Any]) -> str:
     :param v_in_dict_data:
     :return:
     """
-    s_user_name = v_in_dict_data['s_user_name']
-    s_text = f'Тестирование кандидата {s_user_name}:\n\n'  # часть текста с обращением
+    s_user_name = f"{v_in_dict_data['s_user_first_name']} {v_in_dict_data['s_user_last_name']}"
+    s_text = f'Респондент {s_user_name}:\n\n'  # часть текста с обращением
 
     i_step = v_in_dict_data['i_st_step']  # текущий шаг
     i_size = v_in_dict_data['i_size']  # количество вопросов
@@ -230,7 +296,7 @@ def compose_text(v_in_dict_data: Dict[str, Any]) -> str:
             s_question = v_in_dict_data[s_question_key]  # вопрос из FSMContext хранилища
             s_text += f'{i}. {s_question}\n'  # добавление текущего вопроса
         else:
-            s_text += calculate_result(v_in_dict_data)  # вывод результата теста
+            s_text += present_result(v_in_dict_data)  # вывод результата теста
     return s_text
 
 
@@ -255,14 +321,14 @@ def convert_callback_to_user_answer(v_in_s_callback: str, v_in_dict_data: Dict[s
             return {s_state_key: s_answer}
 
 
-def calculate_result(v_in_dict_data: Dict[str, Any]) -> str:
+# TODO calculate_result
+def calculate_result(v_in_dict_data: Dict[str, Any]) -> int:
     """
-    Подсчет результатов теста на основе данных из FSM.
+    Подсчет результатов теста на основе данных из FSMContext хранилища.
 
     :param v_in_dict_data:
     :return:
     """
-
     i_correct = 0  # счетчик правильных ответов
     i_size = v_in_dict_data['i_size']  # количество вопросов
 
@@ -275,6 +341,19 @@ def calculate_result(v_in_dict_data: Dict[str, Any]) -> str:
 
         if s_state == s_recommendation:
             i_correct += 1
+    return i_correct
+
+
+def present_result(v_in_dict_data: Dict[str, Any]) -> str:
+    """
+    Подсчет результатов теста на основе данных из FSM.
+
+    :param v_in_dict_data:
+    :return:
+    """
+
+    i_size = v_in_dict_data['i_size']  # количество вопросов
+    i_correct = v_in_dict_data['i_result']
 
     # предоставляется строка с результатом
     return f'Результат: {i_correct} из {i_size} или {(i_correct / i_size) * 100}%'

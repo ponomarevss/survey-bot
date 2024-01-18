@@ -11,10 +11,11 @@ from aiogram.types import TelegramObject, Message
 from admin import API_TOKEN
 from callback_query import (
     command_start_message_handler,
-    init_state_message_handler, unknown_message_handler,
+    init_quiz_callback_handler, unknown_message_handler,
     incorrect_button_usage_callback_handler,
     start_survey_callback_handler,
-    ans_callback_handler, first_name_message_handler, last_name_message_handler
+    ans_callback_handler, first_name_message_handler, last_name_message_handler, phone_input_callback_handler,
+    phone_backspace_callback_handler
 )
 from states import Form
 
@@ -44,19 +45,23 @@ class AntispamMiddleware(BaseMiddleware):
             return                              # иначе дроп апдейта
 
 
+# сохранение экземпляров Bot и Dispatcher
+bot = Bot(API_TOKEN, parse_mode="HTML")
+dp = Dispatcher()
+
+
 async def start():
-    # сохранение экземпляров Bot и Dispatcher
-    bot = Bot(API_TOKEN)
-    dp = Dispatcher()
 
     # регистрация хендлеров для Message
     dp.message.register(command_start_message_handler, CommandStart())
     dp.message.register(first_name_message_handler, F.text, Form.s_user_first_name)
     dp.message.register(last_name_message_handler, F.text, Form.s_user_last_name)
-    dp.message.register(init_state_message_handler, Form.s_user_phone_num)
     dp.message.register(unknown_message_handler)
 
     # регистрация хендлеров для CallbackQuery
+    dp.callback_query.register(phone_input_callback_handler, Form.s_user_phone_num, F.data.startswith("phone"))
+    dp.callback_query.register(phone_backspace_callback_handler, Form.s_user_phone_num, F.data.startswith("backspace"))
+    dp.callback_query.register(init_quiz_callback_handler, Form.s_user_phone_num, F.data.startswith("confirm"))
     dp.callback_query.register(start_survey_callback_handler, Form.list_answers, F.data.startswith("start_survey"))
     dp.callback_query.register(ans_callback_handler, Form.list_answers, F.data.startswith("ans"))
     dp.callback_query.register(incorrect_button_usage_callback_handler)
