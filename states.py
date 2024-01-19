@@ -4,6 +4,13 @@ from aiogram.fsm.state import StatesGroup, State
 class Form(StatesGroup):
     s_user_first_name = State()
     s_user_last_name = State()
+    s_survey1 = State()
+    s_survey2 = State()
+    s_survey3 = State()
+    s_survey4 = State()
+    s_survey5 = State()
+    s_survey6 = State()
+    s_survey7 = State()
     s_user_phone_num = State()
     list_answers = State()
 

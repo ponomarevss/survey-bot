@@ -15,25 +15,92 @@ async def command_start_message_handler(message: Message, state: FSMContext) -> 
     await state.set_state(Form.s_user_first_name)
 
     await message.answer(f'Добро пожаловать! Это бот для теста знаний.\n'
-                         f'Пожалуйста, введите свое имя.')
+                         f'Пожалуйста, введи свое имя.')
 
 
 async def first_name_message_handler(message: Message, state: FSMContext) -> None:
     await state.set_state(Form.s_user_last_name)
     dict_data = await state.update_data(s_user_first_name=message.text)
-    await message.answer(f"Ваше имя: {dict_data['s_user_first_name']}.\n"
-                         f"Теперь введите свою фамилию.")
+    await message.answer(f"Имя: <b>{dict_data['s_user_first_name']}</b>\n"
+                         f"Теперь введи свою фамилию.")
 
 
 async def last_name_message_handler(message: Message, state: FSMContext) -> None:
-    await state.set_state(Form.s_user_phone_num)
+    await state.set_state(Form.s_survey1)
 
-    s_user_phone_num = '+7'
-    dict_data = await state.update_data(s_user_last_name=message.text, s_user_phone_num=s_user_phone_num)
+    dict_data = await state.update_data(s_user_last_name=message.text)
 
     await message.answer(
-        f"{dict_data['s_user_first_name']} {dict_data['s_user_last_name']},\n"
-        f"введите, пожалуйста, свой номер телефона, начиная со второй цифры.\n"
+        f"Респондент: <b>{dict_data['s_user_first_name']} {dict_data['s_user_last_name']}</b>\n"
+        f"Расскажи о себе (не более 1000 символов)."
+    )
+
+
+async def survey1_message_handler(message: Message, state: FSMContext) -> None:
+    await state.set_state(Form.s_survey2)
+
+    await state.update_data(s_survey1=message.text)
+    await message.answer(
+        "Твои лучшие качества (не более 1000 символов)"
+    )
+
+
+async def survey2_message_handler(message: Message, state: FSMContext) -> None:
+    await state.set_state(Form.s_survey3)
+
+    await state.update_data(s_survey2=message.text)
+    await message.answer(
+        "Твои худшие качества (не более 1000 символов)"
+    )
+
+
+async def survey3_message_handler(message: Message, state: FSMContext) -> None:
+    await state.set_state(Form.s_survey4)
+
+    await state.update_data(s_survey3=message.text)
+    await message.answer(
+        "Образование (не более 1000 символов)"
+    )
+
+
+async def survey4_message_handler(message: Message, state: FSMContext) -> None:
+    await state.set_state(Form.s_survey5)
+
+    await state.update_data(s_survey4=message.text)
+    await message.answer(
+        "Опыт работы (не более 1000 символов)"
+    )
+
+
+async def survey5_message_handler(message: Message, state: FSMContext) -> None:
+    await state.set_state(Form.s_survey6)
+
+    await state.update_data(s_survey5=message.text)
+    await message.answer(
+        "Почему решил заняться разработкой ботов? (не более 1000 символов)"
+    )
+
+
+async def survey6_message_handler(message: Message, state: FSMContext) -> None:
+    await state.set_state(Form.s_survey7)
+
+    await state.update_data(s_survey6=message.text)
+    await message.answer(
+        "Какое развитие для себя видишь через 1 год (не более 1000 символов)"
+    )
+
+
+async def survey7_message_handler(message: Message, state: FSMContext) -> None:
+    await state.set_state(Form.s_user_phone_num)
+
+    await state.update_data(s_survey7=message.text)
+
+    s_user_phone_num = '+7'
+    dict_data = await state.update_data(s_user_phone_num=s_user_phone_num)
+
+    await message.answer(
+        f"Благодарю за ответы, <b>{dict_data['s_user_first_name']}</b>.\n"
+        f"Теперь, пожалуйста, введи свой номер телефона, начиная со второй цифры.\n"
         f"Телефон: <b>{s_user_phone_num}</b>",
         reply_markup=get_phone_input_ikb(dict_data)
     )
@@ -45,7 +112,7 @@ async def phone_input_callback_handler(callback: CallbackQuery, state: FSMContex
     dict_data = await state.update_data(s_user_phone_num=s_updated_num)
 
     await callback.message.edit_text(
-        f"Респондент: {dict_data['s_user_first_name']} {dict_data['s_user_last_name']}\n"
+        f"Респондент: <b>{dict_data['s_user_first_name']} {dict_data['s_user_last_name']}</b>\n"
         f"Телефон: <b>{s_updated_num}</b>",
         reply_markup=get_phone_input_ikb(dict_data)
     )
@@ -57,7 +124,7 @@ async def phone_backspace_callback_handler(callback: CallbackQuery, state: FSMCo
     dict_data = await state.update_data(s_user_phone_num=s_updated_num)
 
     await callback.message.edit_text(
-        f"Респондент: {dict_data['s_user_first_name']} {dict_data['s_user_last_name']}\n"
+        f"Респондент: <b>{dict_data['s_user_first_name']} {dict_data['s_user_last_name']}</b>\n"
         f"Телефон: <b>{s_updated_num}</b>",
         reply_markup=get_phone_input_ikb(dict_data)
     )
@@ -69,9 +136,8 @@ async def init_quiz_callback_handler(callback: CallbackQuery, state: FSMContext)
     list_questions = get_questions_from_source(QUIZ_SIZE)
     dict_data = await state.update_data(data=create_questions_dict(list_questions), i_size=QUIZ_SIZE, i_st_step=1)
 
-    s_text = (f"Респондент: {dict_data['s_user_first_name']} {dict_data['s_user_last_name']}\n"
-              f"Ознакомьтесь с 'положением об обработке персональных данных', "
-              f"затем нажмите кнопку 'Начать тест', когда будете готовы.")
+    s_text = (f"Теперь ознакомься с 'положением об обработке персональных данных',"
+              f"затем нажми кнопку 'Начать тест', когда будешь готов.")
     await callback.message.edit_text(text=s_text, reply_markup=get_start_survey_ikb(dict_data))
 
 

@@ -14,7 +14,8 @@ from сс import (
     init_quiz_callback_handler, unknown_message_handler,
     start_survey_callback_handler,
     ans_callback_handler, first_name_message_handler, last_name_message_handler, phone_input_callback_handler,
-    phone_backspace_callback_handler
+    phone_backspace_callback_handler, survey1_message_handler, survey2_message_handler, survey3_message_handler,
+    survey4_message_handler, survey5_message_handler, survey6_message_handler, survey7_message_handler
 )
 from states import Form
 
@@ -61,6 +62,13 @@ async def start():
     dp.message.register(command_start_message_handler, CommandStart())
     dp.message.register(first_name_message_handler, F.text, Form.s_user_first_name)
     dp.message.register(last_name_message_handler, F.text, Form.s_user_last_name)
+    dp.message.register(survey1_message_handler, F.text, Form.s_survey1)
+    dp.message.register(survey2_message_handler, F.text, Form.s_survey2)
+    dp.message.register(survey3_message_handler, F.text, Form.s_survey3)
+    dp.message.register(survey4_message_handler, F.text, Form.s_survey4)
+    dp.message.register(survey5_message_handler, F.text, Form.s_survey5)
+    dp.message.register(survey6_message_handler, F.text, Form.s_survey6)
+    dp.message.register(survey7_message_handler, F.text, Form.s_survey7)
     dp.message.register(unknown_message_handler)
 
     dp.callback_query.register(phone_input_callback_handler, Form.s_user_phone_num, F.data.startswith("phone"))
@@ -69,7 +77,7 @@ async def start():
     dp.callback_query.register(start_survey_callback_handler, Form.list_answers, F.data.startswith("start_survey"))
     dp.callback_query.register(ans_callback_handler, Form.list_answers, F.data.startswith("ans"))
 
-    dp.message.middleware.register(AntispamMiddleware(v_in_i_cooldown=3))
+    # dp.message.middleware.register(AntispamMiddleware(v_in_i_cooldown=3))
     dp.callback_query.middleware.register(CheckSessionMiddleware())
 
     try:

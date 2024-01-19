@@ -1,6 +1,7 @@
 QUIZ_SIZE = 10
 OPTIONS_NUM = 7
 
+
 questions_source = [
     ('Какой метод используется для отправки текстового сообщения в aiogram?',
      ['send_message()', 'post_message()', 'text_send()', 'message_send()', 'send_text()', 'transmit_message()',
