@@ -284,12 +284,16 @@ def calculate_result(v_in_dict_data: Dict[str, Any]) -> int:
 def present_result(v_in_dict_data: Dict[str, Any]) -> str:
     i_size = v_in_dict_data['i_size']
     i_correct = v_in_dict_data['i_result']
-    s_user_first_name = v_in_dict_data['s_user_first_name']
-    s_user_last_name = v_in_dict_data['s_user_last_name']
-    s_user_phone_num = v_in_dict_data['s_user_phone_num']
     s_result = f'Результат: {i_correct} из {i_size} или {(i_correct / i_size) * 100}%'
-    print(f"Респондент: {s_user_first_name} {s_user_last_name}\n"
-          f"Телефон: {s_user_phone_num}\n"
+    print(f"Респондент: {v_in_dict_data['s_user_first_name']} {v_in_dict_data['s_user_last_name']}\n"
+          f"Телефон: {v_in_dict_data['s_user_phone_num']}\n"
+          f"О себе: {v_in_dict_data['s_survey1']}\n"
+          f"Лучшие качества: {v_in_dict_data['s_survey2']}\n"
+          f"Худшие качества: {v_in_dict_data['s_survey3']}\n"
+          f"Образование: {v_in_dict_data['s_survey4']}\n"
+          f"Опыт работы: {v_in_dict_data['s_survey5']}\n"
+          f"Почему решил: {v_in_dict_data['s_survey6']}\n"
+          f"Какое развитие через 1 год: {v_in_dict_data['s_survey7']}\n"
           f"{s_result}")
     return s_result
 
