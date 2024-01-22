@@ -5,7 +5,7 @@ from typing import Dict, Any
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
-from source import questions_source, QUIZ_SIZE, OPTIONS_NUM
+from source import tech_questions_source, QUIZ_SIZE, OPTIONS_NUM
 from states import Form
 
 
@@ -14,8 +14,22 @@ async def command_start_message_handler(message: Message, state: FSMContext) -> 
     await save_user_data(message, state)
     await state.set_state(Form.s_user_first_name)
 
-    await message.answer(f'Добро пожаловать! Это бот для теста знаний.\n'
-                         f'Пожалуйста, введи свое имя.')
+    await message.answer(
+        text=f'Добро пожаловать!\n'
+             f'Это бот для интервью, в рамках которого, ты расскажешь о себе, '
+             f'пройдешь небольшой психологичекий и технический тесты.\n'
+             f'Ознакомься с "положением об обработке персональных данных" и начнем.\n\n'
+             f'Пожалуйста, <b>введи свое имя:</b>',
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text='Положение об обработке персональных данных',
+                                         url='https://t.me/gaga_games'),
+
+                ]
+            ]
+        )
+    )
 
 
 async def first_name_message_handler(message: Message, state: FSMContext) -> None:
@@ -130,25 +144,26 @@ async def phone_backspace_callback_handler(callback: CallbackQuery, state: FSMCo
     )
 
 
-async def init_quiz_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
-    await state.set_state(Form.list_answers)
+async def tech_init_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(Form.list_tech_answers)
 
     list_questions = get_questions_from_source(QUIZ_SIZE)
-    dict_data = await state.update_data(data=create_questions_dict(list_questions), i_size=QUIZ_SIZE, i_st_step=1)
+    dict_data = await state.update_data(data=create_tech_questions_dict(list_questions), i_size=QUIZ_SIZE, i_st_step=1)
 
-    s_text = (f"Теперь ознакомься с 'положением об обработке персональных данных',"
-              f"затем нажми кнопку 'Начать тест', когда будешь готов.")
-    await callback.message.edit_text(text=s_text, reply_markup=get_start_survey_ikb(dict_data))
+    await callback.message.edit_text(
+        text="Мы подошли к техническому тестированию. Нажми кнопку 'Начать тест', когда будешь готов.",
+        reply_markup=get_start_survey_ikb(dict_data)
+    )
 
 
-async def start_survey_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
+async def tech_start_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     dict_data = await state.get_data()
 
     await callback.message.edit_text(compose_text(dict_data), reply_markup=get_answers_ikb(dict_data))
     await state.update_data(i_st_step=dict_data['i_st_step'] + 1)
 
 
-async def ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
+async def tech_ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     dict_data = await state.get_data()
 
     dict_data = await state.update_data(data=convert_callback_to_user_answer(callback.data, dict_data))
@@ -172,6 +187,7 @@ async def unknown_message_handler(message: Message):
     )
 
 
+# TODO ikb
 def get_phone_input_ikb(v_in_dict_data: Dict[str, Any]) -> InlineKeyboardMarkup:
     s_message_id = v_in_dict_data['s_message_id']
 
@@ -200,7 +216,6 @@ def get_start_survey_ikb(v_in_dict_data: Dict[str, Any]) -> InlineKeyboardMarkup
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text='Положение об обработке персональных данных', url='https://t.me/gaga_games'),
                 InlineKeyboardButton(text="Начать тест", callback_data=f'start_survey_{s_message_id}')
             ]
         ]
@@ -230,6 +245,7 @@ def get_answers_ikb(v_in_dict_data: Dict[str, Any]) -> InlineKeyboardMarkup:
     return ikb
 
 
+# TODO utils
 def compose_text(v_in_dict_data: Dict[str, Any]) -> str:
     s_user_name = f"{v_in_dict_data['s_user_first_name']} {v_in_dict_data['s_user_last_name']}"
     s_text = f'Респондент {s_user_name}:\n\n'
@@ -299,10 +315,10 @@ def present_result(v_in_dict_data: Dict[str, Any]) -> str:
 
 
 def get_questions_from_source(i_size: int) -> list[tuple[str, list[str], str]]:
-    return random.sample(questions_source, i_size)
+    return random.sample(tech_questions_source, i_size)
 
 
-def create_questions_dict(v_in_list_questions: list[tuple[str, list[str], str]]) -> Dict[str, Any]:
+def create_tech_questions_dict(v_in_list_questions: list[tuple[str, list[str], str]]) -> Dict[str, Any]:
     dict_result = dict()
     for i_list_questions_index in range(len(v_in_list_questions)):
         i_j = i_list_questions_index + 1

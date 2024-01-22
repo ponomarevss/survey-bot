@@ -11,9 +11,9 @@ from aiogram.types import TelegramObject, Message
 from admin import API_TOKEN
 from сс import (
     command_start_message_handler,
-    init_quiz_callback_handler, unknown_message_handler,
-    start_survey_callback_handler,
-    ans_callback_handler, first_name_message_handler, last_name_message_handler, phone_input_callback_handler,
+    tech_init_callback_handler, unknown_message_handler,
+    tech_start_callback_handler,
+    tech_ans_callback_handler, first_name_message_handler, last_name_message_handler, phone_input_callback_handler,
     phone_backspace_callback_handler, survey1_message_handler, survey2_message_handler, survey3_message_handler,
     survey4_message_handler, survey5_message_handler, survey6_message_handler, survey7_message_handler
 )
@@ -73,9 +73,9 @@ async def start():
 
     dp.callback_query.register(phone_input_callback_handler, Form.s_user_phone_num, F.data.startswith("phone"))
     dp.callback_query.register(phone_backspace_callback_handler, Form.s_user_phone_num, F.data.startswith("backspace"))
-    dp.callback_query.register(init_quiz_callback_handler, Form.s_user_phone_num, F.data.startswith("confirm"))
-    dp.callback_query.register(start_survey_callback_handler, Form.list_answers, F.data.startswith("start_survey"))
-    dp.callback_query.register(ans_callback_handler, Form.list_answers, F.data.startswith("ans"))
+    dp.callback_query.register(tech_init_callback_handler, Form.s_user_phone_num, F.data.startswith("confirm"))
+    dp.callback_query.register(tech_start_callback_handler, Form.list_tech_answers, F.data.startswith("start_survey"))
+    dp.callback_query.register(tech_ans_callback_handler, Form.list_tech_answers, F.data.startswith("ans"))
 
     # dp.message.middleware.register(AntispamMiddleware(v_in_i_cooldown=3))
     dp.callback_query.middleware.register(CheckSessionMiddleware())

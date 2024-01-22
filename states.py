@@ -12,7 +12,8 @@ class Form(StatesGroup):
     s_survey6 = State()
     s_survey7 = State()
     s_user_phone_num = State()
-    list_answers = State()
+    list_psycho_answers = State()
+    list_tech_answers = State()
 
 
 class StateConfig(StatesGroup):
