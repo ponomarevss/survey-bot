@@ -1,3 +1,4 @@
 API_TOKEN = '6956131544:AAE2QYfsW6hae4ypg8mfvkvBkUdIJsgZVnM'
-ADMIN_ID = []
+ADMIN_ID = [324901643]
 BOT_NAME = f"name_bot"
+
