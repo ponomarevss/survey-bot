@@ -1,19 +1,108 @@
+from datetime import datetime
 import random
-import time
 from typing import Dict, Any
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from sqlalchemy import Column, BigInteger, String, Boolean, select, DateTime, Text
+from sqlalchemy.orm import Session, declarative_base
 
 from admin import ADMIN_ID
 from source import tech_questions_source, TECH_QUIZ_SIZE, OPTIONS_NUM, psycho_questions_source
 from states import Form
 
+Base = declarative_base()
 
-async def command_start_message_handler(message: Message, state: FSMContext) -> None:
+
+# TODO: db tables
+class User(Base):
+    __tablename__ = "t_users"
+
+    id = Column(BigInteger, primary_key=True, unique=True, autoincrement=True)
+    user_id = Column(BigInteger)
+    s_username = Column(String(50))
+    s_firstname = Column(String(50))
+    s_lastname = Column(String(50))
+    s_language_code = Column(String(5))
+    s_is_premium = Column(String(5))
+    dt_dateupd = Column(DateTime)
+
+    def __repr__(self) -> str:
+        return (f"User("
+                f"id={self.id}, "
+                f"user_id={self.user_id}, "
+                f"s_username={self.s_username}, "
+                f"s_firstname={self.s_firstname}, "
+                f"s_lastname={self.s_lastname}, "
+                f"s_language_code={self.s_language_code}, "
+                f"s_is_premium={self.s_is_premium}, "
+                f"dt_dateupd={self.dt_dateupd}"
+                f")")
+
+
+class Log(Base):
+    __tablename__ = "t_log"
+
+    id = Column(BigInteger, primary_key=True, unique=True, autoincrement=True)
+    user_id = Column(BigInteger)
+    s_username = Column(String(50))
+    s_firstname = Column(String(50))
+    s_lastname = Column(String(50))
+    s_language_code = Column(String(5))
+    s_is_premium = Column(String(5))
+    s_question = Column(String(100))
+    s_answer = Column(String(1000))
+    dt_dateupd = Column(DateTime)
+
+    def __repr__(self) -> str:
+        return (f"Log("
+                f"id={self.id}, "
+                f"user_id={self.user_id}, "
+                f"s_username={self.s_username}, "
+                f"s_firstname={self.s_firstname}, "
+                f"s_lastname={self.s_lastname}, "
+                f"s_language_code={self.s_language_code}, "
+                f"s_is_premium={self.s_is_premium}, "
+                f"s_question={self.s_question}, "
+                f"s_answer={self.s_answer}, "
+                f"dt_dateupd={self.dt_dateupd}"
+                f")")
+
+
+class Client(Base):
+    __tablename__ = "t_client"
+
+    user_id = Column(BigInteger, primary_key=True, unique=True, autoincrement=False)
+    s_username = Column(String(50))
+    s_firstname = Column(String(50))
+    s_lastname = Column(String(50))
+    s_language_code = Column(String(5))
+    s_is_premium = Column(String(5))
+    s_survey = Column(Text)
+    s_psyco = Column(String(50))
+    s_tech = Column(String(50))
+    dt_dateupd = Column(DateTime)
+
+    def __repr__(self) -> str:
+        return (f"Client("
+                f"user_id={self.user_id}, "
+                f"s_username={self.s_username}, "
+                f"s_firstname={self.s_firstname}, "
+                f"s_lastname={self.s_lastname}, "
+                f"s_language_code={self.s_language_code}, "
+                f"s_is_premium={self.s_is_premium}, "
+                f"s_survey={self.s_survey}, "
+                f"s_psyco={self.s_psyco}, "
+                f"s_tech={self.s_tech}, "
+                f"dt_dateupd={self.dt_dateupd}"
+                f")")
+
+
+# TODO message handlers
+async def command_start_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.clear()
-    await save_user_data(message, state)
+    await save_user_data(message, state, session)
     await state.set_state(Form.s_user_first_name)
 
     await message.answer(
@@ -34,17 +123,19 @@ async def command_start_message_handler(message: Message, state: FSMContext) -> 
     )
 
 
-async def first_name_message_handler(message: Message, state: FSMContext) -> None:
+async def first_name_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_user_last_name)
     dict_data = await state.update_data(s_user_first_name=message.text)
+    await save_message_to_t_log(message, 'Пожалуйста, введи свое имя', session)
     await message.answer(f"Имя: <b>{dict_data['s_user_first_name']}</b>\n"
                          f"Теперь введи свою фамилию.")
 
 
-async def last_name_message_handler(message: Message, state: FSMContext) -> None:
+async def last_name_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey1)
 
     dict_data = await state.update_data(s_user_last_name=message.text)
+    await save_message_to_t_log(message, 'Теперь введи свою фамилию', session)
 
     await message.answer(
         f"Респондент: <b>{dict_data['s_user_first_name']} {dict_data['s_user_last_name']}</b>\n"
@@ -52,17 +143,22 @@ async def last_name_message_handler(message: Message, state: FSMContext) -> None
     )
 
 
-async def survey1_message_handler(message: Message, state: FSMContext) -> None:
+async def survey1_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey2)
 
+    await save_message_to_t_log(message, 'Расскажи о себе (не более 1000 символов)', session)
+
     await state.update_data(s_survey1=message.text)
+
     await message.answer(
         "Твои лучшие качества (не более 1000 символов)"
     )
 
 
-async def survey2_message_handler(message: Message, state: FSMContext) -> None:
+async def survey2_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey3)
+
+    await save_message_to_t_log(message, 'Твои лучшие качества (не более 1000 символов)', session)
 
     await state.update_data(s_survey2=message.text)
     await message.answer(
@@ -70,8 +166,10 @@ async def survey2_message_handler(message: Message, state: FSMContext) -> None:
     )
 
 
-async def survey3_message_handler(message: Message, state: FSMContext) -> None:
+async def survey3_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey4)
+
+    await save_message_to_t_log(message, 'Твои худшие качества (не более 1000 символов)', session)
 
     await state.update_data(s_survey3=message.text)
     await message.answer(
@@ -79,8 +177,10 @@ async def survey3_message_handler(message: Message, state: FSMContext) -> None:
     )
 
 
-async def survey4_message_handler(message: Message, state: FSMContext) -> None:
+async def survey4_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey5)
+
+    await save_message_to_t_log(message, 'Образование (не более 1000 символов)', session)
 
     await state.update_data(s_survey4=message.text)
     await message.answer(
@@ -88,8 +188,10 @@ async def survey4_message_handler(message: Message, state: FSMContext) -> None:
     )
 
 
-async def survey5_message_handler(message: Message, state: FSMContext) -> None:
+async def survey5_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey6)
+
+    await save_message_to_t_log(message, 'Опыт работы (не более 1000 символов)', session)
 
     await state.update_data(s_survey5=message.text)
     await message.answer(
@@ -97,8 +199,12 @@ async def survey5_message_handler(message: Message, state: FSMContext) -> None:
     )
 
 
-async def survey6_message_handler(message: Message, state: FSMContext) -> None:
+async def survey6_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey7)
+
+    await save_message_to_t_log(
+        message, 'Почему решил заняться разработкой ботов? (не более 1000 символов)', session
+    )
 
     await state.update_data(s_survey6=message.text)
     await message.answer(
@@ -106,8 +212,10 @@ async def survey6_message_handler(message: Message, state: FSMContext) -> None:
     )
 
 
-async def survey7_message_handler(message: Message, state: FSMContext) -> None:
+async def survey7_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_user_phone_num)
+
+    await save_message_to_t_log(message, 'Какое развитие для себя видишь через 1 год (не более 1000 символов)', session)
 
     await state.update_data(s_survey7=message.text)
 
@@ -122,6 +230,7 @@ async def survey7_message_handler(message: Message, state: FSMContext) -> None:
     )
 
 
+# TODO: callback handlers
 async def phone_input_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     dict_data = await state.get_data()
     s_updated_num = dict_data['s_user_phone_num'] + callback.data.split('_')[1]
@@ -145,7 +254,7 @@ async def phone_backspace_callback_handler(callback: CallbackQuery, state: FSMCo
     )
 
 
-async def psycho_init_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
+async def psycho_init_callback_handler(callback: CallbackQuery, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.list_psycho_answers)
 
     psycho_questions_dict = create_psycho_questions_dict()
@@ -154,6 +263,8 @@ async def psycho_init_callback_handler(callback: CallbackQuery, state: FSMContex
         i_size=len(psycho_questions_source),
         i_step=0
     )
+
+    await save_callback_to_t_log(callback, 'Телефон', dict_data['s_user_phone_num'], session)
 
     await callback.message.edit_text(
         text="Сейчас будет несколько вопросов в рамках психологического тестирования. "
@@ -241,6 +352,7 @@ async def unknown_message_handler(message: Message):
     )
 
 
+# TODO keyboards
 def get_phone_input_ikb(v_in_dict_data: Dict[str, Any]) -> InlineKeyboardMarkup:
     s_message_id = v_in_dict_data['s_message_id']
 
@@ -489,8 +601,13 @@ def create_psycho_questions_dict() -> Dict[str, Any]:
     return dict_result
 
 
-async def save_user_data(v_in_message, v_in_state):
-    dict_data = await v_in_state.update_data(
+async def save_user_data(v_in_message, v_in_state, v_in_session):
+    await save_t_user(v_in_message, v_in_session)
+    await save_user_to_cache(v_in_message, v_in_state)
+
+
+async def save_user_to_cache(v_in_message, v_in_state):
+    await v_in_state.update_data(
         s_message_id=str(v_in_message.message_id),
         user_id=v_in_message.from_user.id,
         s_username=v_in_message.from_user.username,
@@ -498,6 +615,51 @@ async def save_user_data(v_in_message, v_in_state):
         s_last_name=v_in_message.from_user.last_name,
         s_language_code=v_in_message.from_user.language_code,
         s_is_premium=v_in_message.from_user.is_premium,
-        dt_dateupd=time.time()
+        dt_dateupd=datetime.now()
     )
-    print(dict_data)
+
+
+async def save_t_user(v_in_message, v_in_session):
+    incoming_user = User(
+        user_id=v_in_message.from_user.id,
+        s_username=v_in_message.from_user.username,
+        s_firstname=v_in_message.from_user.first_name,
+        s_lastname=v_in_message.from_user.last_name,
+        s_language_code=v_in_message.from_user.language_code,
+        s_is_premium=v_in_message.from_user.is_premium,
+        dt_dateupd=datetime.now()
+    )
+    v_in_session.merge(incoming_user)
+    v_in_session.commit()
+
+
+async def save_message_to_t_log(v_in_message, s_question, v_in_session):
+    incoming_log = Log(
+        user_id=v_in_message.from_user.id,
+        s_username=v_in_message.from_user.username,
+        s_firstname=v_in_message.from_user.first_name,
+        s_lastname=v_in_message.from_user.last_name,
+        s_language_code=v_in_message.from_user.language_code,
+        s_is_premium=v_in_message.from_user.is_premium,
+        s_question=s_question,
+        s_answer=v_in_message.text,
+        dt_dateupd=datetime.now()
+    )
+    v_in_session.merge(incoming_log)
+    v_in_session.commit()
+
+
+async def save_callback_to_t_log(v_in_callback, s_question, s_answer, v_in_session):
+    incoming_log = Log(
+        user_id=v_in_callback.message.from_user.id,
+        s_username=v_in_callback.message.from_user.username,
+        s_firstname=v_in_callback.message.from_user.first_name,
+        s_lastname=v_in_callback.message.from_user.last_name,
+        s_language_code=v_in_callback.message.from_user.language_code,
+        s_is_premium=v_in_callback.message.from_user.is_premium,
+        s_question=s_question,
+        s_answer=s_answer,
+        dt_dateupd=datetime.now()
+    )
+    v_in_session.merge(incoming_log)
+    v_in_session.commit()

@@ -7,18 +7,36 @@ from typing import Callable, Dict, Any, Awaitable
 from aiogram import F, Bot, Dispatcher, BaseMiddleware
 from aiogram.filters import CommandStart
 from aiogram.types import TelegramObject, Message
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
-from admin import API_TOKEN
+from admin import API_TOKEN, DB_URL
+from states import Form
 from сс import (
     command_start_message_handler,
-    tech_init_callback_handler, unknown_message_handler,
+    unknown_message_handler,
     tech_start_callback_handler,
     tech_ans_callback_handler, first_name_message_handler, last_name_message_handler, phone_input_callback_handler,
     phone_backspace_callback_handler, survey1_message_handler, survey2_message_handler, survey3_message_handler,
     survey4_message_handler, survey5_message_handler, survey6_message_handler, survey7_message_handler,
-    psycho_init_callback_handler, psycho_ans_callback_handler, psycho_start_callback_handler
+    psycho_init_callback_handler, psycho_ans_callback_handler, psycho_start_callback_handler, Base
 )
-from states import Form
+
+
+class DbSessionMiddleware(BaseMiddleware):
+    def __init__(self, session: Session):
+        super().__init__()
+        self.session = session
+
+    async def __call__(
+            self,
+            handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+            event: TelegramObject,
+            data: Dict[str, Any],
+    ) -> Any:
+        with self.session as session:
+            data["session"] = session
+            return await handler(event, data)
 
 
 class AntispamMiddleware(BaseMiddleware):
@@ -54,11 +72,15 @@ class CheckSessionMiddleware(BaseMiddleware):
             return
 
 
-bot = Bot(API_TOKEN, parse_mode="HTML")
-dp = Dispatcher()
-
-
 async def start():
+    engine = create_engine(url=DB_URL)
+    Base.metadata.create_all(engine)
+
+    bot = Bot(API_TOKEN, parse_mode="HTML")
+    dp = Dispatcher()
+    # dp.message.middleware.register(AntispamMiddleware(v_in_i_cooldown=3))
+    dp.update.middleware.register(DbSessionMiddleware(session=Session(engine)))
+    dp.callback_query.middleware.register(CheckSessionMiddleware())
 
     dp.message.register(command_start_message_handler, CommandStart())
     dp.message.register(first_name_message_handler, F.text, Form.s_user_first_name)
@@ -80,9 +102,6 @@ async def start():
     # dp.callback_query.register(tech_init_callback_handler, Form.list_tech_answers, F.data.startswith("reply"))
     dp.callback_query.register(tech_start_callback_handler, Form.list_tech_answers, F.data.startswith("start_survey"))
     dp.callback_query.register(tech_ans_callback_handler, Form.list_tech_answers, F.data.startswith("ans"))
-
-    # dp.message.middleware.register(AntispamMiddleware(v_in_i_cooldown=3))
-    dp.callback_query.middleware.register(CheckSessionMiddleware())
 
     try:
         await dp.start_polling(bot)
