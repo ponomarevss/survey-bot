@@ -1,3 +1,5 @@
+from aiogram import Router, F
+from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy.orm import Session
@@ -11,7 +13,10 @@ from utils import save_user_data, save_message_to_t_log, create_psycho_questions
     get_questions_from_source, create_tech_questions_dict, compose_tech_text, convert_callback_to_tech_answer, \
     calculate_tech_result, compose_report
 
+rt = Router()
 
+
+@rt.message(CommandStart())
 async def command_start_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.clear()
     await save_user_data(message, state, session)
@@ -35,6 +40,7 @@ async def command_start_message_handler(message: Message, state: FSMContext, ses
     )
 
 
+@rt.message(F.text, Form.s_user_first_name)
 async def first_name_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_user_last_name)
     dict_data = await state.update_data(s_user_first_name=message.text)
@@ -43,6 +49,7 @@ async def first_name_message_handler(message: Message, state: FSMContext, sessio
                          f"Теперь введи свою фамилию.")
 
 
+@rt.message(F.text, Form.s_user_last_name)
 async def last_name_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey1)
 
@@ -55,6 +62,7 @@ async def last_name_message_handler(message: Message, state: FSMContext, session
     )
 
 
+@rt.message(F.text, Form.s_survey1)
 async def survey1_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey2)
 
@@ -67,6 +75,7 @@ async def survey1_message_handler(message: Message, state: FSMContext, session: 
     )
 
 
+@rt.message(F.text, Form.s_survey2)
 async def survey2_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey3)
 
@@ -78,6 +87,7 @@ async def survey2_message_handler(message: Message, state: FSMContext, session: 
     )
 
 
+@rt.message(F.text, Form.s_survey3)
 async def survey3_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey4)
 
@@ -89,6 +99,7 @@ async def survey3_message_handler(message: Message, state: FSMContext, session: 
     )
 
 
+@rt.message(F.text, Form.s_survey4)
 async def survey4_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey5)
 
@@ -100,6 +111,7 @@ async def survey4_message_handler(message: Message, state: FSMContext, session: 
     )
 
 
+@rt.message(F.text, Form.s_survey5)
 async def survey5_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey6)
 
@@ -111,6 +123,7 @@ async def survey5_message_handler(message: Message, state: FSMContext, session: 
     )
 
 
+@rt.message(F.text, Form.s_survey6)
 async def survey6_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_survey7)
 
@@ -124,6 +137,7 @@ async def survey6_message_handler(message: Message, state: FSMContext, session: 
     )
 
 
+@rt.message(F.text, Form.s_survey7)
 async def survey7_message_handler(message: Message, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.s_user_phone_num)
 
@@ -143,6 +157,7 @@ async def survey7_message_handler(message: Message, state: FSMContext, session: 
 
 
 # TODO: callback handlers
+@rt.callback_query(Form.s_user_phone_num, F.data.startswith("phone"))
 async def phone_input_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     dict_data = await state.get_data()
     s_updated_num = dict_data['s_user_phone_num'] + callback.data.split('_')[1]
@@ -154,6 +169,7 @@ async def phone_input_callback_handler(callback: CallbackQuery, state: FSMContex
     )
 
 
+@rt.callback_query(Form.s_user_phone_num, F.data.startswith("backspace"))
 async def phone_backspace_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     dict_data = await state.get_data()
     s_updated_num = dict_data['s_user_phone_num'][:-1]
@@ -166,6 +182,7 @@ async def phone_backspace_callback_handler(callback: CallbackQuery, state: FSMCo
     )
 
 
+@rt.callback_query(Form.s_user_phone_num, F.data.startswith("confirm"))
 async def psycho_init_callback_handler(callback: CallbackQuery, state: FSMContext, session: Session) -> None:
     await state.set_state(Form.list_psycho_answers)
 
@@ -185,6 +202,7 @@ async def psycho_init_callback_handler(callback: CallbackQuery, state: FSMContex
     )
 
 
+@rt.callback_query(Form.list_psycho_answers, F.data.startswith("start_survey"))
 async def psycho_start_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     dict_data = await state.get_data()
 
@@ -193,6 +211,7 @@ async def psycho_start_callback_handler(callback: CallbackQuery, state: FSMConte
     await state.update_data(i_step=dict_data['i_step'] + 1)
 
 
+@rt.callback_query(Form.list_psycho_answers, F.data.startswith("reply"))
 async def psycho_ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     dict_data = await state.get_data()
 
@@ -212,6 +231,7 @@ async def psycho_ans_callback_handler(callback: CallbackQuery, state: FSMContext
         await tech_init_callback_handler(callback, state)
 
 
+@rt.callback_query(Form.list_tech_answers, F.data.startswith("reply"))
 async def tech_init_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(Form.list_tech_answers)
 
@@ -229,6 +249,7 @@ async def tech_init_callback_handler(callback: CallbackQuery, state: FSMContext)
     )
 
 
+@rt.callback_query(Form.list_tech_answers, F.data.startswith("start_survey"))
 async def tech_start_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     dict_data = await state.get_data()
 
@@ -236,6 +257,7 @@ async def tech_start_callback_handler(callback: CallbackQuery, state: FSMContext
     await state.update_data(i_step=dict_data['i_step'] + 1)
 
 
+@rt.callback_query(Form.list_tech_answers, F.data.startswith("ans"))
 async def tech_ans_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     dict_data = await state.get_data()
 
@@ -250,15 +272,19 @@ async def tech_ans_callback_handler(callback: CallbackQuery, state: FSMContext) 
     if i_step <= i_size:
         await state.update_data(i_step=i_step + 1)
     else:
-        await callback.message.answer(text=f"{dict_data['s_user_first_name']}, благодарю за потраченное время. "
-                                           f"Мы обязательно ознакомимся с результатами твоего тестирования"
-                                           f"и перезвоним по оставленному тобой телефону, если они нас заинтересуют.")
+        await callback.message.answer(text=f"{dict_data['s_user_first_name']}, благодарим за потраченное время. "
+                                           f"Мы обязательно ознакомимся с результатами твоего тестирования "
+                                           f"и перезвоним, если они нас заинтересуют.")
         await state.set_state(None)
-        await callback.bot.send_message(chat_id=ADMIN_ID[0], text=f'{compose_report(dict_data)}')
+        for admin_id in ADMIN_ID:
+            await callback.bot.send_message(chat_id=admin_id, text=f'{compose_report(dict_data)}')
 
 
+@rt.message()
 async def unknown_message_handler(message: Message):
     await message.reply(
-        text='Некорректное текстовое сообщение.\n'
-             'Используйте предложенные кнопки для продолжения теста или команду "/start" для запуска новой сессии.'
+        text='Некорректное сообщение.\n'
+             'Введите текст, если требуется. '
+             'Если предоставлена клавиатура, используйте предложенные кнопки для продолжения теста '
+             'или команду "/start" для запуска новой сессии.'
     )
