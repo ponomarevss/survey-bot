@@ -1,6 +1,7 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy.orm import Session
 
@@ -8,18 +9,23 @@ from admin import ADMIN_ID
 from keyboards import get_phone_input_ikb, get_start_survey_ikb, get_psycho_answers_ikb, get_tech_answers_ikb
 from source import TECH_QUIZ_SIZE, psycho_questions_source
 from states import Form
-from utils import save_user_data, save_message_to_t_log, create_psycho_questions_dict, save_callback_to_t_log, \
+from utils import save_message_to_t_log, create_psycho_questions_dict, save_callback_to_t_log, \
     compose_psycho_text, convert_callback_to_psycho_reply, calculate_psycho_result, present_psycho_result, \
     get_questions_from_source, create_tech_questions_dict, compose_tech_text, convert_callback_to_tech_answer, \
-    calculate_tech_result, compose_report
+    calculate_tech_result, compose_report, save_user_to_cache
 
 rt = Router()
 
 
 @rt.message(CommandStart())
-async def command_start_message_handler(message: Message, state: FSMContext, session: Session) -> None:
+async def command_start_message_handler(
+        message: Message,
+        state: FSMContext,
+        session: Session,
+        storage: RedisStorage
+) -> None:
     await state.clear()
-    await save_user_data(message, state, session)
+    await save_user_to_cache(message, storage)
     await state.set_state(Form.s_user_first_name)
 
     await message.answer(

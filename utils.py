@@ -1,6 +1,9 @@
 import random
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
+
+from aiogram.fsm.storage.redis import RedisStorage
+from redis.asyncio import Redis
 
 from models import User, Log
 from source import OPTIONS_NUM, tech_questions_source, psycho_questions_source
@@ -188,17 +191,24 @@ async def save_user_data(v_in_message, v_in_state, v_in_session):
     await save_user_to_cache(v_in_message, v_in_state)
 
 
-async def save_user_to_cache(v_in_message, v_in_state):
-    await v_in_state.update_data(
-        s_message_id=str(v_in_message.message_id),
-        user_id=v_in_message.from_user.id,
-        s_username=v_in_message.from_user.username,
-        s_first_name=v_in_message.from_user.first_name,
-        s_last_name=v_in_message.from_user.last_name,
-        s_language_code=v_in_message.from_user.language_code,
-        s_is_premium=v_in_message.from_user.is_premium,
-        dt_dateupd=datetime.now()
-    )
+"""сохранять в кеш вопросики, ответики, варианты ответов, правильный ответ, обновлять dt_dateupd
+"""
+# TODO: это сохранение в кэш при запуске сессии по команде старт
+async def save_user_to_cache(v_in_message, v_in_storage: RedisStorage):
+    prefix = str(v_in_message.from_user.id)
+    redis = v_in_storage.redis
+    await redis.set(prefix + 's_message_id', v_in_message.message_id)
+    await redis.set(prefix + 'user_id', v_in_message.from_user.id)
+    await redis.set(prefix + 'dt_dateupd', str(datetime.now()))
+
+
+async def get_user_id_list(storage: RedisStorage) -> List[str]:
+    list_result: List[str] = list()
+    keys = await storage.redis.keys()
+    for k in keys:
+        if 'user_id' in k:
+            list_result.append(await storage.redis.get(k))
+    return list_result
 
 
 async def save_t_user(v_in_message, v_in_session):
