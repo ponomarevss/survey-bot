@@ -25,8 +25,11 @@ async def command_start_message_handler(
         storage: RedisStorage
 ) -> None:
     await state.clear()
-    await save_user_to_cache(message, storage)
+    # await save_user_to_cache(message, storage)
     await state.set_state(Form.s_user_first_name)
+
+    print(await state.get_state())
+    print(await storage.redis.keys())
 
     await message.answer(
         text=f'Добро пожаловать!\n'
@@ -39,7 +42,6 @@ async def command_start_message_handler(
                 [
                     InlineKeyboardButton(text='Положение об обработке персональных данных',
                                          url='https://t.me/gaga_games'),
-
                 ]
             ]
         )

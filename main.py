@@ -21,12 +21,12 @@ async def start():
     Base.metadata.create_all(engine)
 
     bot = Bot(API_TOKEN, parse_mode="HTML")
-    storage = RedisStorage.from_url(url=CACHE_URL, connection_kwargs={"decode_responses": True})
+    storage = RedisStorage.from_url(url=CACHE_URL, connection_kwargs={"decode_responses": True})    # создаем редис
 
-    dp = Dispatcher(storage=storage)
+    dp = Dispatcher(storage=storage)    # передаем редис в Dispatcher
 
     # dp.message.middleware.register(AntispamMiddleware(v_in_i_cooldown=3))
-    dp.update.middleware.register(CacheMiddleware(redis_storage=storage))
+    dp.update.middleware.register(CacheMiddleware(redis_storage=storage))   # передаем редис через CacheMiddleware
     dp.update.middleware.register(DbSessionMiddleware(session=Session(engine)))
     dp.callback_query.middleware.register(CheckSessionMiddleware())
 
@@ -37,9 +37,10 @@ async def start():
     #     if '324901643' in k:
     #         await storage.redis.delete(k)
 
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(get_user_id_list, trigger='interval', seconds=5, kwargs={'storage': storage})
-    scheduler.start()
+    # AsyncIOScheduler
+    # scheduler = AsyncIOScheduler()
+    # scheduler.add_job(get_user_id_list, trigger='interval', seconds=5, kwargs={'storage': storage})
+    # scheduler.start()
 
     try:
         await dp.start_polling(bot)

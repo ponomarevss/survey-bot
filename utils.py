@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import Dict, Any, List
 
 from aiogram.fsm.storage.redis import RedisStorage
-from redis.asyncio import Redis
 
 from models import User, Log
 from source import OPTIONS_NUM, tech_questions_source, psycho_questions_source
