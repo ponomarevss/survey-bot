@@ -111,7 +111,7 @@ async def survey7_message_handler(message: Message, state: FSMContext) -> None:
 
     await state.update_data(s_survey7=message.text)
 
-    s_user_phone_num = '+79998887766'
+    s_user_phone_num = '+7'
     dict_data = await state.update_data(s_user_phone_num=s_user_phone_num)
 
     await message.answer(
